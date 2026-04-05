@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>剪輯任務</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --G:#1a4a1a;--Gm:#2d6e2d;--Gl:#4a9e4a;--Gp:#e8f2e8;--Gw:#f2f7f2;
+  --cream:#fafaf5;--ink:#111;--ink2:#444;--ink3:#888;
+  --border:#d8e4d8;--border2:#c0d4c0;--white:#fff;
+  --warn:#c45000;--warnbg:#fff4ec;
+  --blue:#2563eb;--bluebg:#eff6ff;
+  --ff:-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif;
+  --mono:'SF Mono','Fira Code','Consolas',monospace
+}
+body{background:var(--cream);color:var(--ink);font-family:var(--ff);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:var(--G);color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:13px;font-weight:700;opacity:.6;letter-spacing:1px}
+.editor-name{font-size:16px;font-weight:900;letter-spacing:-.3px}
+.task-count{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px}
+.header-right{font-family:var(--mono);font-size:10px;opacity:.4}
+
+/* ── CONTENT ── */
+.content{max-width:900px;margin:0 auto;padding:24px 20px 60px}
+
+/* ── FILTER ── */
+.filter-row{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.pill{border:1.5px solid var(--border2);border-radius:6px;padding:4px 12px;font-size:12px;font-weight:500;color:var(--ink2);background:var(--white);cursor:pointer;transition:all .12s;font-family:var(--ff)}
+.pill:hover{border-color:var(--Gm);color:var(--G)}
+.pill.active{border-color:var(--G);background:var(--G);color:#fff}
+
+/* ── TASK CARD ── */
+.task-card{background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px;transition:box-shadow .15s}
+.task-card:hover{box-shadow:0 2px 12px rgba(26,74,26,.08)}
+.task-head{padding:16px 20px;cursor:pointer;user-select:none;transition:background .1s}
+.task-head:hover{background:#f8fdf8}
+.task-card.open .task-head{background:#f5fbf5;border-bottom:1px solid var(--border)}
+.th-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.th-title{font-size:15px;font-weight:900;color:var(--G);line-height:1.3}
+.th-code{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px}
+.th-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.th-bottom{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chevron{font-size:12px;color:var(--ink3);transition:transform .2s;display:inline-block;margin-left:4px}
+.task-card.open .chevron{transform:rotate(90deg)}
+
+/* ── STATUS ── */
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700}
+.status-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.vs-素材整理{background:#f5f0ff;color:#5b4ab0}
+.vs-待剪輯{background:#fff4e0;color:#8a5000}
+.vs-剪輯中{background:#eeedfe;color:#3d35a0}
+.vs-審核中{background:#e1f5ee;color:#0d5f5f}
+.vs-已交付{background:var(--Gp);color:var(--G)}
+.vs-已歸檔{background:#f0f0f0;color:#666}
+
+.status-sel{border:1.5px solid var(--border2);border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;background:var(--white);cursor:pointer;outline:none;transition:border-color .15s}
+.status-sel:focus{border-color:var(--G)}
+
+/* ── TASK BODY ── */
+.task-body{display:none;padding:20px}
+.task-card.open .task-body{display:block}
+
+.section{margin-bottom:18px}
+.section-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:500;margin-bottom:6px}
+.section-content{background:var(--Gw);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink2);line-height:1.7;white-space:pre-wrap}
+.section-content.empty{color:var(--ink3);font-style:italic}
+
+.link-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;transition:all .15s;cursor:pointer;border:none;font-family:var(--ff)}
+.link-btn.primary{background:var(--G);color:#fff}
+.link-btn.primary:hover{background:var(--Gm)}
+.link-btn.outline{background:var(--white);color:var(--G);border:1.5px solid var(--Gm)}
+.link-btn.outline:hover{background:var(--Gp)}
+.link-btn.blue{background:var(--bluebg);color:var(--blue);border:1.5px solid var(--blue)}
+
+.link-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+
+/* ── EDITABLE ── */
+.edit-area{width:100%;border:1.5px solid var(--border2);border-radius:8px;padding:10px 12px;font-family:var(--ff);font-size:13px;color:var(--ink);line-height:1.7;resize:vertical;outline:none;background:var(--white);transition:border-color .15s;min-height:48px}
+.edit-area:focus{border-color:var(--G);background:#fafff8}
+.edit-hint{font-size:11px;color:var(--ink3);font-family:var(--mono);margin-top:4px}
+.save-btn{margin-top:6px;padding:6px 16px;background:var(--G);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:background .15s}
+.save-btn:hover{background:var(--Gm)}
+
+/* ── EMPTY / LOADING ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--ink3)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:700;color:var(--ink2);margin-bottom:6px}
+.empty-desc{font-size:13px;line-height:1.6}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--G);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;transform:translateY(5px);transition:all .22s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── NOT FOUND ── */
+.notfound{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;gap:12px}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <span class="logo">VIDPRO</span>
+    <span class="editor-name" id="editor-name">載入中…</span>
+    <span class="task-count" id="task-count"></span>
+  </div>
+  <div class="header-right" id="header-date"></div>
+</header>
+
+<div class="content" id="main-content">
+  <div class="empty-state">
+    <div class="empty-icon">⏳</div>
+    <div class="empty-title">載入中</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Storage key — must match index.html ──────────────────────────
+const SK = 'vidpro_v3';
+
+// ── Utils ─────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const e = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const nl2br = t => t ? String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\\\\n/g,'<br>').replace(/\n/g,'<br>') : '';
+const fd = d => d ? d.replace(/(\d{4})-(\d{2})-(\d{2}).*/,'$1.$2.$3') : '—';
+
+function toast(m, d=2000){
+  const t=$('toast'); t.textContent=m; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), d);
+}
+
+// ── Get editor name from URL ──────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const EDITOR = params.get('name') || params.get('editor') || '';
+
+// ── Load DB ───────────────────────────────────────────────────────
+let DB = {};
+function loadDB(){
+  try {
+    const raw = localStorage.getItem(SK);
+    DB = raw ? JSON.parse(raw) : {};
+  } catch(e) { DB = {}; }
+}
+
+function saveDB(){
+  try { localStorage.setItem(SK, JSON.stringify(DB)); } catch(e){}
+}
+
+// ── Status options ────────────────────────────────────────────────
+const VSTATUS = ['素材整理','待剪輯','剪輯中','審核中','已交付','已歸檔'];
+
+// ── Filter state ──────────────────────────────────────────────────
+let filterStatus = 'all';
+
+// ── Render ────────────────────────────────────────────────────────
+function render(){
+  loadDB();
+
+  if(!EDITOR){
+    $('main-content').innerHTML = `<div class="notfound">
+      <div style="font-size:48px">🔗</div>
+      <div style="font-size:18px;font-weight:900;color:var(--G)">沒有指定剪輯師名稱</div>
+      <div style="font-size:13px;color:var(--ink3);margin-top:6px">請使用專屬連結，例如：<br><code style="font-family:var(--mono);background:var(--Gw);padding:4px 8px;border-radius:4px">editor.html?name=品婕</code></div>
+    </div>`;
+    $('editor-name').textContent = '請使用專屬連結';
+    return;
+  }
+
+  $('editor-name').textContent = EDITOR;
+  $('header-date').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});
+
+  // Get all videos assigned to this editor
+  const allVids = (DB.videos||[]).filter(v => v.editor === EDITOR);
+
+  // Apply status filter
+  let vids = filterStatus === 'all' ? allVids :
+    filterStatus === '進行中' ? allVids.filter(v=>!['已交付','已歸檔'].includes(v.status)) :
+    allVids.filter(v=>v.status===filterStatus);
+
+  // Count by status
+  const inProgress = allVids.filter(v=>!['已交付','已歸檔'].includes(v.status)).length;
+  $('task-count').textContent = `${inProgress} 支進行中 / 共 ${allVids.length} 支`;
+
+  if(allVids.length === 0){
+    $('main-content').innerHTML = `<div class="empty-state">
+      <div class="empty-icon">✦</div>
+      <div class="empty-title">目前沒有指派給「${e(EDITOR)}」的任務</div>
+      <div class="empty-desc">任務會由管理員在主控台指派<br>請稍後再回來查看</div>
+    </div>`;
+    return;
+  }
+
+  // Filter pills
+  const pills = `<div class="filter-row">
+    ${['all','進行中','素材整理','待剪輯','剪輯中','審核中','已交付'].map(s=>`
+      <button class="pill ${filterStatus===s?'active':''}" onclick="setFilter('${s}')">
+        ${s==='all'?'全部':s}${s==='all'?` (${allVids.length})`:s==='進行中'?` (${inProgress})`:''}
+      </button>`).join('')}
+  </div>`;
+
+  if(vids.length === 0){
+    $('main-content').innerHTML = pills + `<div class="empty-state">
+      <div class="empty-icon">✓</div>
+      <div class="empty-title">此篩選條件沒有任務</div>
+    </div>`;
+    return;
+  }
+
+  // Sort: in-progress first, then by project
+  vids.sort((a,b)=>{
+    const order = {素材整理:0,待剪輯:1,剪輯中:2,審核中:3,已交付:4,已歸檔:5};
+    return (order[a.status]||0)-(order[b.status]||0);
+  });
+
+  const cards = vids.map(v => {
+    const script = (DB.scripts||[]).find(s=>s.video_id===v.video_id);
+    const sid = v.video_id.replace(/[^a-z0-9]/gi,'_');
+    const opts = VSTATUS.map(o=>`<option${o===v.status?' selected':''}>${o}</option>`).join('');
+
+    return `<div class="task-card" id="tc-${sid}">
+      <div class="task-head" onclick="toggleCard('${sid}')">
+        <div class="th-top">
+          <div>
+            <div class="th-title">${e(v.title)} <span class="chevron">›</span></div>
+            <div class="th-code">${v.video_id}</div>
+          </div>
+          <div class="th-right" onclick="event.stopPropagation()">
+            <select class="status-sel vs-${v.status}" onchange="updateStatus('${v.video_id}',this)">${opts}</select>
+          </div>
+        </div>
+        <div class="th-bottom">
+          ${script?`<span style="font-size:11px;color:#7c5abf;font-weight:600">📄 ${e(script.script_id)}</span>`:''}
+          ${v.done_date?`<span style="font-family:var(--mono);font-size:11px;color:var(--Gm)">✓ 完成 ${fd(v.done_date)}</span>`:''}
+          ${v.footage_link?`<a href="${v.footage_link}" target="_blank" class="link-btn blue" style="padding:2px 9px;font-size:11px">▷ 素材</a>`:''}
+          ${v.final_link?`<a href="${v.final_link}" target="_blank" class="link-btn outline" style="padding:2px 9px;font-size:11px">▷ 完成檔</a>`:''}
+        </div>
+      </div>
+      <div class="task-body">
+
+        ${script&&(script.outline||script.key_points)?`
+        <div class="section">
+          <div class="section-label">腳本</div>
+          ${script.summary?`<div class="section-content" style="margin-bottom:8px;font-weight:600">${e(script.summary)}</div>`:''}
+          ${script.outline?`<div style="margin-bottom:4px;font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:8px">腳本大綱</div><div class="section-content">${nl2br(script.outline)}</div>`:''}
+          ${script.key_points?`<div style="margin-bottom:4px;font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:8px">重點乾貨</div><div class="section-content">${nl2br(script.key_points)}</div>`:''}
+        </div>`:''}
+
+        <div class="section">
+          <div class="section-label">素材 & 檔案連結</div>
+          <div class="link-row">
+            ${v.footage_link?`<a href="${v.footage_link}" target="_blank" class="link-btn primary">▷ 開啟素材資料夾</a>`:`<span style="font-size:12px;color:var(--ink3)">管理員尚未上傳素材連結</span>`}
+            ${v.final_link?`<a href="${v.final_link}" target="_blank" class="link-btn outline">▷ 查看完成檔</a>`:''}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-label">完成檔連結（填入後按儲存）</div>
+          <textarea class="edit-area" id="fl-${sid}" placeholder="貼上 Google Drive 完成檔連結…" rows="2">${e(v.final_link)}</textarea>
+          <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+            <button class="save-btn" onclick="saveFinalLink('${v.video_id}','${sid}')">儲存連結</button>
+            <span class="edit-hint">儲存後管理員也會看到</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-label">備註</div>
+          <textarea class="edit-area" id="nt-${sid}" placeholder="剪輯備註、問題記錄…" rows="3">${e(v.notes)}</textarea>
+          <button class="save-btn" onclick="saveNote('${v.video_id}','${sid}')" style="margin-top:6px">儲存備註</button>
+        </div>
+
+      </div>
+    </div>`;
+  }).join('');
+
+  $('main-content').innerHTML = pills + cards;
+}
+
+function toggleCard(sid){
+  const card = document.getElementById('tc-'+sid);
+  if(card) card.classList.toggle('open');
+}
+
+function setFilter(s){
+  filterStatus = s;
+  render();
+}
+
+function updateStatus(vid, sel){
+  loadDB();
+  const v = (DB.videos||[]).find(x=>x.video_id===vid);
+  if(!v) return;
+  v.status = sel.value;
+  if(sel.value==='已交付' && !v.done_date){
+    v.done_date = new Date().toISOString().split('T')[0];
+  }
+  // Update select color class
+  sel.className = 'status-sel vs-'+sel.value;
+  saveDB();
+  toast('狀態已更新');
+}
+
+function saveFinalLink(vid, sid){
+  loadDB();
+  const v = (DB.videos||[]).find(x=>x.video_id===vid);
+  if(!v) return;
+  const val = ($('fl-'+sid)||{}).value || '';
+  v.final_link = val;
+  saveDB();
+  toast('完成檔連結已儲存 ✓');
+}
+
+function saveNote(vid, sid){
+  loadDB();
+  const v = (DB.videos||[]).find(x=>x.video_id===vid);
+  if(!v) return;
+  const val = ($('nt-'+sid)||{}).value || '';
+  v.notes = val;
+  saveDB();
+  toast('備註已儲存 ✓');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
