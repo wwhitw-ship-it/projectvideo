@@ -1,0 +1,2445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>短影音後製主控台</title>
+<style>
+/* System font fallbacks — no network required */
+:root{
+  --ff-system: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+  --mono-system: 'DM Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+</style>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --G:#1a4a1a;--Gm:#2d6e2d;--Gl:#4a9e4a;--Gp:#e8f2e8;--Gw:#f2f7f2;
+  --cream:#fafaf5;--ink:#111;--ink2:#444;--ink3:#888;
+  --border:#d8e4d8;--border2:#c0d4c0;--white:#fff;
+  --warn:#c45000;--warnbg:#fff4ec;
+  --blue:#2563eb;--bluebg:#eff6ff;
+  --ff:var(--ff-system,'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif);--mono:var(--mono-system,'DM Mono','SF Mono','Consolas',monospace)
+}
+body{background:var(--cream);color:var(--ink);font-family:var(--ff);font-size:14px;line-height:1.6;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{width:200px;flex-shrink:0;background:var(--G);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:200}
+.main{margin-left:200px;flex:1}
+.sb-top{padding:24px 20px 18px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-eye{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px}
+.sb-title{font-size:16px;font-weight:900;line-height:1.25}
+.sb-title em{font-style:normal;color:rgba(255,255,255,.35);font-weight:400;font-size:10px;display:block;margin-top:2px}
+.nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.25);padding:8px 20px 3px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 20px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,.55);border-left:2px solid transparent;transition:all .15s;user-select:none}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav-item.active{color:#fff;background:rgba(255,255,255,.1);border-left-color:#fff}
+.nav-icon{width:15px;text-align:center;font-size:13px;flex-shrink:0}
+.nav-cnt{margin-left:auto;font-family:var(--mono);font-size:10px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:1px 6px;border-radius:20px;min-width:20px;text-align:center}
+.nav-cnt.alert{background:var(--warn)}
+.sb-bottom{padding:12px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:7px}
+.save-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25);flex-shrink:0;transition:background .3s}
+.save-dot.ok{background:#6bf2b4}
+.save-dot.dirty{background:var(--warn);animation:pulse 1.4s infinite}
+.save-txt{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.3)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--white);border-bottom:1.5px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.page-title{font-size:18px;font-weight:900;color:var(--G);letter-spacing:-.4px}
+.page-sub{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:12px;letter-spacing:.5px}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative}
+.search{border:1.5px solid var(--border2);border-radius:8px;padding:6px 28px 6px 12px;font-family:var(--ff);font-size:13px;width:180px;outline:none;background:var(--Gw);color:var(--ink);transition:border-color .15s}
+.search:focus{border-color:var(--Gm)}
+.search::placeholder{color:var(--ink3)}
+.search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--ink3);cursor:pointer;display:none;line-height:1}
+.search-clear.show{display:block}
+.date-chip{font-family:var(--mono);font-size:11px;color:var(--ink3);background:var(--Gw);border:1px solid var(--border);padding:5px 11px;border-radius:8px;white-space:nowrap}
+
+/* ── CONTENT ── */
+.content{padding:24px 32px 60px}
+.module{display:none}
+.module.active{display:block;animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── STAT STRIP ── */
+.stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.stat-cell{background:var(--white);padding:18px 18px 14px;cursor:pointer;transition:background .15s}
+.stat-cell:hover{background:var(--Gw)}
+.stat-num{font-size:32px;font-weight:900;color:var(--G);line-height:1;letter-spacing:-2px;margin-bottom:3px}
+.stat-cell.wc .stat-num{color:var(--warn)}
+.stat-lbl{font-size:11px;color:var(--ink3);font-weight:500;margin-bottom:1px}
+.stat-desc{font-family:var(--mono);font-size:9px;color:var(--border2)}
+
+/* ── LAYOUT HELPERS ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
+.section-label{font-size:9px;font-family:var(--mono);font-weight:500;color:var(--Gm);letter-spacing:2px;text-transform:uppercase}
+.filter-row{display:flex;gap:4px;flex-wrap:wrap}
+.pill{border:1.5px solid var(--border2);border-radius:6px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--ink2);background:var(--white);cursor:pointer;transition:all .12s;font-family:var(--ff)}
+.pill:hover{border-color:var(--Gm);color:var(--G)}
+.pill.active{border-color:var(--G);background:var(--G);color:#fff}
+
+/* ── TABLE ── */
+.tbox{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border)}
+th{padding:9px 14px;text-align:left;font-family:var(--mono);font-size:9px;font-weight:500;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;background:var(--Gw)}
+tbody tr{border-bottom:1px solid rgba(216,228,216,.4);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f7fdf7}
+.dash-proj-row:hover{background:#f0faf0!important}
+td{padding:10px 14px;vertical-align:middle}
+.cm{font-size:14px;font-weight:700;color:var(--ink)}
+.cs{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* stage colours */
+.st-洽談中{background:#f5f0ff;color:#5b4ab0}
+.st-已簽約{background:#fff0e0;color:#8a4000}
+.st-企劃中{background:#e8f4ff;color:#1a5fa0}
+.st-已排程{background:#e0eeff;color:#1040a0}
+.st-製作中{background:#eeedfe;color:#3d35a0}
+.st-審核中{background:#e1f5ee;color:#0d5f5f}
+.st-已交付{background:var(--Gp);color:var(--G)}
+.st-已結案{background:#f0f0f0;color:#666}
+/* pay */
+.pay-已付款{background:var(--Gp);color:var(--G)}
+.pay-待付款{background:var(--warnbg);color:var(--warn)}
+/* client status */
+.cs-洽談中{background:#f5f0ff;color:#5b4ab0}
+.cs-合作中{background:var(--Gp);color:var(--G)}
+.cs-暫停{background:#fff4e0;color:#8a5000}
+.cs-結案{background:#f0f0f0;color:#666}
+/* video status */
+.vs-素材整理{background:#f5f0ff;color:#5b4ab0}
+.vs-待剪輯{background:#fff4e0;color:#8a5000}
+.vs-剪輯中{background:#eeedfe;color:#3d35a0}
+.vs-審核中{background:#e1f5ee;color:#0d5f5f}
+.vs-已交付{background:var(--Gp);color:var(--G)}
+.vs-已歸檔{background:#f0f0f0;color:#666}
+
+/* ── EDITABLE ── */
+.editable{cursor:pointer;border-radius:4px;padding:2px 6px;margin:-2px -6px;transition:background .15s;min-width:28px;display:inline-block}
+.editable:hover{background:var(--bluebg);outline:1.5px dashed var(--blue)}
+.editable:focus{background:var(--bluebg);outline:2px solid var(--blue);cursor:text}
+/* editable cells get a subtle tint so it's obvious */
+td.editable-cell{background:#fafffe}
+td.editable-cell:hover{background:var(--bluebg)}
+.edit-hint{font-size:9px;color:var(--blue);font-family:var(--mono);margin-left:2px;opacity:0;transition:opacity .15s}
+.link-edit{max-width:70px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;vertical-align:middle}
+tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
+.status-sel{border:1.5px solid var(--border2);border-radius:5px;padding:2px 6px;font-family:var(--ff);font-size:11px;font-weight:700;background:var(--white);cursor:pointer;outline:none;transition:border-color .15s}
+.status-sel:focus{border-color:var(--G)}
+.edit-sel{border:1.5px solid var(--border2);border-radius:5px;padding:2px 7px;font-family:var(--ff);font-size:12px;font-weight:600;background:var(--white);cursor:pointer;outline:none}
+.edit-sel:focus{border-color:var(--G)}
+.note-field{width:100%;background:transparent;border:none;outline:none;font-family:var(--ff);font-size:12px;color:var(--ink2);padding:2px 4px;border-radius:4px;margin:-2px -4px;resize:none;transition:background .15s}
+.note-field:hover,.note-field:focus{background:var(--bluebg)}
+.note-field:focus{outline:2px solid var(--blue)}
+
+/* ── PANEL ── */
+.panel{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.panel-head{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--Gw);display:flex;align-items:center;justify-content:space-between}
+.phl{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--Gm);font-weight:500}
+.panel-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(216,228,216,.35);font-size:13px}
+.panel-row:last-child{border-bottom:none}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0;margin-top:5px;animation:pulse 1.8s infinite}
+
+/* ── PIPELINE VIEW ── */
+.pipeline-row{display:flex;align-items:center;gap:0;margin-bottom:3px}
+.pipe-stage{font-size:10px;font-weight:700;padding:3px 7px;border-radius:0}
+.pipe-stage:first-child{border-radius:4px 0 0 4px}
+.pipe-stage:last-child{border-radius:0 4px 4px 0}
+.pipe-stage.current{outline:2px solid var(--G);outline-offset:-2px;z-index:1}
+.pipe-stage.done{opacity:.55}
+.pipe-stage.future{opacity:.22}
+
+/* ── 3-LEVEL ACCORDION ── */
+.client-row{background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:box-shadow .2s}
+.client-row:hover{box-shadow:0 2px 10px rgba(26,74,26,.06)}
+.client-header{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;transition:background .1s}
+.client-header:hover{background:#f8fdf8}
+.ch-left{display:flex;align-items:center;gap:12px}
+.ch-chevron{font-size:12px;color:var(--ink3);transition:transform .2s;width:14px;text-align:center;flex-shrink:0}
+.client-row.open .ch-chevron{transform:rotate(90deg)}
+.ch-name{font-size:15px;font-weight:900;color:var(--G);letter-spacing:-.3px}
+.ch-sub{font-size:11px;color:var(--ink3);margin-top:1px;font-family:var(--mono)}
+.ch-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proj-list-inner{border-top:1px solid var(--border);background:var(--Gw);display:none}
+.client-row.open .proj-list-inner{display:block}
+.proj-row{border-bottom:1px solid rgba(216,228,216,.4)}
+.proj-row:last-child{border-bottom:none}
+.proj-header{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:10px 18px 10px 44px;cursor:pointer;user-select:none;transition:background .1s}
+.proj-header:hover{background:#edf7ed}
+.proj-row.open .proj-header{background:#edf7ed}
+.ph-chevron{font-size:10px;color:var(--ink3);transition:transform .2s;width:12px;flex-shrink:0}
+.proj-row.open .ph-chevron{transform:rotate(90deg)}
+.ph-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ph-right{display:flex;align-items:center;gap:6px}
+.ph-prog{display:flex;align-items:center;gap:5px}
+.ph-bar{height:3px;background:var(--border2);border-radius:2px;overflow:hidden;width:50px}
+.ph-bar-fill{height:100%;border-radius:2px}
+.ph-pct{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--Gm);white-space:nowrap}
+.video-panel{display:none;border-top:1px solid var(--border);background:var(--white)}
+.proj-row.open .video-panel{display:block}
+.vp-header{padding:8px 18px 8px 44px;background:#f9fef9;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.vp-lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--Gm);font-weight:500}
+.proj-fields{border-bottom:1px solid var(--border)}
+.pf-row{display:flex;align-items:center;gap:8px;padding:7px 18px 7px 44px;border-bottom:1px solid rgba(216,228,216,.3);background:var(--white)}
+.pf-row:last-child{border-bottom:none}
+.pf-row.warn-bg{background:#fffbf0}
+.pf-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--ink3);white-space:nowrap;flex-shrink:0;min-width:48px}
+.pf-lbl.warn{color:var(--warn)}
+.pf-inp{flex:1;background:transparent;border:none;outline:none;font-family:var(--ff);font-size:12px;color:var(--ink2);padding:2px 5px;border-radius:4px;margin:-2px -5px;resize:none;transition:background .15s;min-width:0}
+.pf-inp:hover{background:var(--bluebg)}
+.pf-inp:focus{background:var(--bluebg);outline:2px solid var(--blue)}
+.dl-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:var(--G);color:#fff;border-radius:7px;font-size:11px;font-weight:700;text-decoration:none;transition:background .15s}
+.dl-btn:hover{background:var(--Gm)}
+.vt{width:100%;border-collapse:collapse;font-size:12px}
+.vt th{padding:7px 12px;text-align:left;font-family:var(--mono);font-size:9px;font-weight:500;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase;background:var(--Gw);border-bottom:1px solid var(--border);white-space:nowrap}
+.vt td{padding:8px 12px;border-bottom:1px solid rgba(216,228,216,.3);vertical-align:middle}
+.vt tr:last-child td{border-bottom:none}
+.vt tr:hover td{background:#f5fbf5}
+.vt td.ec{background:#f8fffc}
+.vt tr:hover td.ec{background:var(--bluebg)}
+.vt-title{font-weight:600;color:var(--ink);max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.vt-code{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:1px}
+.vp-add{padding:7px 18px 7px 44px;border-top:1px solid var(--border);background:#f9fef9}
+.add-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border:1.5px dashed var(--border2);border-radius:6px;font-size:12px;color:var(--ink3);cursor:pointer;transition:all .15s;background:none;font-family:var(--ff)}
+.add-btn:hover{border-color:var(--Gm);color:var(--G);background:var(--Gp)}
+
+/* ── CLIENT CARDS ── */
+.client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-bottom:20px}
+.ccard{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .15s}
+.ccard:hover{border-color:var(--Gm);transform:translateY(-1px)}
+.ccard-strip{height:3px}
+.cs-洽談中-strip{background:#7c5abf}
+.cs-合作中-strip{background:var(--G)}
+.cs-暫停-strip{background:#c8a000}
+.cs-結案-strip{background:#bbb}
+.ccard-body{padding:16px 18px}
+.cn{font-size:15px;font-weight:900;color:var(--G);margin-bottom:1px;letter-spacing:-.3px}
+.cc{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:1px}
+.ccard-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0;padding:11px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.ml{font-size:9px;color:var(--ink3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.mv{font-size:12px;font-weight:700;color:var(--ink)}
+.ccard-note{font-size:11px;color:var(--ink2);line-height:1.5;margin-bottom:10px}
+.ccard-ints{border-top:1px solid var(--border);padding-top:8px}
+.ci-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);margin-bottom:5px}
+.ci-row{display:flex;gap:7px;padding:4px 0;border-bottom:1px solid rgba(216,228,216,.35);font-size:11px;align-items:flex-start}
+.ci-row:last-child{border-bottom:none}
+.ci-date{font-family:var(--mono);font-size:10px;color:var(--ink3);white-space:nowrap;flex-shrink:0;min-width:58px}
+.ci-text{color:var(--ink2);flex:1;line-height:1.4}
+.sig{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap;flex-shrink:0}
+.sig-積極,.sig-熱情{background:var(--Gp);color:var(--G)}
+.sig-一般,.sig-有回覆但不多{background:#f0f0f0;color:#666}
+.sig-沒反應{background:var(--warnbg);color:var(--warn)}
+.ccard-actions{display:flex;gap:6px;margin-top:8px}
+
+/* ── SCRIPTS ── */
+.cat-chip{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px}
+.cat-趨勢{background:var(--Gp);color:var(--G)}
+.cat-觀念{background:#eeedfe;color:#3d35a0}
+.cat-技術{background:#e0f2f2;color:#0d5f5f}
+.cat-日常{background:#fff4e0;color:#8a5000}
+.confirm-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;cursor:pointer;border:none;font-family:var(--ff);transition:all .15s}
+.confirm-btn.yes{background:var(--Gp);color:var(--G)}
+.confirm-btn.no{background:#f0f0f0;color:var(--ink3)}
+.confirm-btn:hover{opacity:.8}
+
+/* ── PAYMENTS ── */
+.pay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:18px}
+.pay-card{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .15s}
+.pay-card:hover{border-color:var(--Gm)}
+.pay-card-head{padding:12px 16px;background:var(--Gw);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.pay-id{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.5px;margin-bottom:3px}
+.pay-client{font-size:14px;font-weight:900;color:var(--G)}
+.pay-card-body{padding:12px 16px;display:flex;flex-direction:column;gap:7px}
+.pay-row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.pay-key{color:var(--ink3)}
+.pay-val{font-weight:700;color:var(--ink)}
+.pay-amount{font-size:20px;font-weight:900;color:var(--G);font-family:var(--mono);letter-spacing:-1px}
+.pay-type{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:6px}
+.pt-訂金{background:#fff4e0;color:#8a5000}
+.pt-尾款{background:#e6f1fb;color:#185fa5}
+.pt-全額{background:#eeedfe;color:#3d35a0}
+.pt-月費{background:#e1f5ee;color:#0d5f5f}
+.pay-overdue{color:var(--warn);font-size:10px;font-weight:700}
+
+/* ── ICON BUTTONS ── */
+.icon-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid var(--border2);border-radius:7px;font-size:12px;font-weight:600;color:var(--ink2);background:var(--white);cursor:pointer;transition:all .12s;font-family:var(--ff)}
+.icon-btn:hover{border-color:var(--Gm);color:var(--G);background:var(--Gp)}
+.icon-btn.danger:hover{border-color:#c00;color:#c00;background:#fff5f5}
+.icon-btn.primary{background:var(--G);color:#fff;border-color:var(--G)}
+.icon-btn.primary:hover{background:var(--Gm);border-color:var(--Gm)}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--white);border-radius:14px;padding:24px;width:480px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:900;color:var(--G);margin-bottom:16px}
+.fr{margin-bottom:10px}
+.fr label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.fr input,.fr select,.fr textarea{width:100%;border:1.5px solid var(--border2);border-radius:8px;padding:7px 11px;font-family:var(--ff);font-size:13px;color:var(--ink);outline:none;transition:border-color .15s;background:var(--white)}
+.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:var(--G)}
+.fr textarea{resize:vertical;min-height:52px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:16px}
+.btn-p{background:var(--G);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:background .15s}
+.btn-p:hover{background:var(--Gm)}
+.btn-c{background:var(--white);color:var(--ink2);border:1.5px solid var(--border2);padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--ff)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--G);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;transform:translateY(5px);transition:all .22s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── SCHEDULE / CALENDAR ── */
+.sch-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.sch-view-btn{border:1.5px solid var(--border2);border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;color:var(--ink2);background:var(--white);cursor:pointer;font-family:var(--ff);transition:all .12s}
+.sch-view-btn.active{border-color:var(--G);background:var(--G);color:#fff}
+/* Year view */
+.sch-year-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mini-cal{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:box-shadow .15s}
+.mini-cal:hover{box-shadow:0 2px 10px rgba(26,74,26,.08)}
+.mc-mini-head{padding:8px 12px;background:var(--Gw);border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--G);cursor:pointer;transition:background .12s}.mc-mini-head:hover{background:var(--Gp)}
+.mc-mini-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:5px;gap:1px}
+.mmd{font-size:9px;text-align:center;padding:3px 1px;border-radius:3px;color:var(--ink3);line-height:1}
+.mmd.wk{color:var(--ink3);opacity:.4}
+.mmd.hol{color:var(--warn)}
+.mmd.has{background:var(--G);color:#fff;font-weight:700}
+.mmd.hol.has{background:var(--warn);color:#fff}
+.mmd.tod{outline:2px solid var(--blue);outline-offset:-1px}
+.mmd.dim{opacity:.18}
+/* ── shoot day in mini cal: green bg on the number ── */
+.mmd.has{background:var(--Gm);color:#fff;font-weight:700;border-radius:3px}
+.mmd.has.hol{background:var(--warn);color:#fff}
+.mmd.has.tod{outline:2px solid var(--blue);outline-offset:-1px}
+.shoot-dot{display:none}
+/* Year view list */
+.yr-list{border-top:1px solid var(--border);padding:6px 8px;display:flex;flex-direction:column;gap:3px;min-height:36px}
+.yr-list-row{display:flex;align-items:baseline;gap:6px;padding:2px 4px;border-radius:4px;cursor:pointer;transition:background .1s}
+.yr-list-row:hover{background:var(--Gp)}
+.yr-list-date{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm);flex-shrink:0;min-width:22px}
+.yr-list-clients{font-size:11px;color:var(--ink2);font-weight:500;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.yr-list-empty{font-size:10px;color:var(--ink3);font-family:var(--mono);padding:2px 4px}
+.dow-lbl{font-size:8px;font-family:var(--mono);color:var(--ink3);text-align:center;padding:2px 0;opacity:.6}
+/* Month view */
+.month-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.month-dow-row{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);background:var(--Gw)}
+.month-dow{padding:8px 0;text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.5px}
+.month-body{display:grid;grid-template-columns:repeat(7,1fr)}
+.mc-cell{min-height:90px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px 8px;position:relative;transition:background .1s}
+.mc-cell:nth-child(7n){border-right:none}
+.mc-cell.dim-cell{background:var(--Gw);opacity:.5}
+.mc-cell.today-cell{background:#f0f8ff}
+.mc-cell.hol-cell{background:#fffaf5}
+.mc-cell:hover{background:#f5fdf5}
+.mc-cell-date{font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.mc-cell.today-cell .mc-cell-date{color:var(--blue)}
+.mc-cell.hol-cell .mc-cell-date{color:var(--warn)}
+.hol-name{font-size:9px;color:var(--warn);font-weight:400}
+.shoot-chip{display:flex;align-items:center;gap:4px;background:var(--G);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:4px;margin-bottom:3px;cursor:pointer;transition:background .12s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shoot-chip:hover{background:var(--Gm)}
+.shoot-chip .sc-del{opacity:0;transition:opacity .15s;margin-left:auto;flex-shrink:0;font-size:11px}
+.shoot-chip:hover .sc-del{opacity:.7}
+.cell-add{font-size:10px;color:var(--ink3);cursor:pointer;padding:2px 4px;border-radius:3px;display:inline-block;transition:all .12s;border:1px dashed transparent}
+.cell-add:hover{border-color:var(--border2);color:var(--G);background:var(--Gp)}
+
+/* ── SCRIPT POPUP ── */
+.sv-field-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:500;margin-bottom:5px}
+.sv-field-box{background:var(--Gw);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink2);line-height:1.7;min-height:40px}
+.sv-field-pre{white-space:pre-wrap;font-size:12px;line-height:1.8}
+.sv-section{background:var(--Gw);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.sv-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:500;margin-bottom:6px}
+.sv-content{font-size:13px;color:var(--ink2);line-height:1.7}
+.sv-pre{white-space:pre-wrap;font-size:12px;line-height:1.8}
+.sv-copy{background:#f8f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:#3d35a0;border-left:3px solid #7c5abf;margin:-2px}
+.sv-meta-box{background:var(--Gw);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:0}
+.sv-meta-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink3);margin-bottom:4px}
+.sv-meta-val{font-size:12px;font-weight:600;color:var(--ink)}
+/* ── SCRIPT EXPANDABLE ROWS ── */
+.scr-row{cursor:pointer;transition:background .1s}
+.scr-row:hover{background:#f8f4ff}
+.scr-row.open{background:#f5f0ff}
+.scr-chevron{font-size:11px;color:var(--ink3);transition:transform .2s;display:inline-block;width:14px;text-align:center}
+.scr-row.open .scr-chevron{transform:rotate(90deg)}
+.scr-detail{display:none;background:#faf8ff;border-top:1px solid rgba(180,160,230,.2)}
+.scr-row.open + .scr-detail{display:table-row}
+.scr-detail-inner{padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.scr-field{display:flex;flex-direction:column;gap:5px}
+.scr-field.full{grid-column:1/-1}
+.scr-field-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#7c5abf;font-weight:500}
+.scr-field-val{font-size:12px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;background:var(--white);border:1px solid rgba(180,160,230,.3);border-radius:6px;padding:8px 10px;min-height:32px}
+.scr-field-val.empty{color:var(--ink3);font-style:italic}
+.scr-edit-area{width:100%;border:1.5px solid var(--border2);border-radius:6px;padding:8px 10px;font-family:var(--ff);font-size:13px;color:var(--ink);line-height:1.7;resize:vertical;outline:none;background:var(--white);transition:border-color .15s}
+.scr-edit-area:focus{border-color:#7c5abf;background:#fdfaff}
+.scr-edit-area:hover{border-color:var(--border2);background:#fdfaff}
+.scr-edit-input{width:100%;border:1.5px solid var(--border2);border-radius:6px;padding:7px 10px;font-family:var(--ff);font-size:12px;color:var(--ink);outline:none;background:var(--white);transition:border-color .15s}
+.scr-edit-input:focus{border-color:#7c5abf}
+
+/* ── SCRIPT CART ── */
+.cart-bar{position:sticky;top:60px;z-index:90;background:var(--G);color:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(26,74,26,.2);transition:all .3s}
+.cart-bar.empty{display:none}
+.cart-count{font-family:var(--mono);font-size:12px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px}
+.cart-selects{display:flex;gap:8px;flex:1}
+.cart-sel{border:1.5px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 10px;font-family:var(--ff);font-size:12px;font-weight:600;background:rgba(255,255,255,.1);color:#fff;cursor:pointer;outline:none;flex:1}
+.cart-sel option{background:var(--G);color:#fff}
+.cart-btn{background:#fff;color:var(--G);border:none;padding:6px 16px;border-radius:7px;font-size:12px;font-weight:900;cursor:pointer;font-family:var(--ff);transition:all .15s;white-space:nowrap}
+.cart-btn:hover{background:var(--Gp)}
+.cart-clear{background:none;border:1.5px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer;font-family:var(--ff)}
+.cart-clear:hover{border-color:#fff;color:#fff}
+.scr-checkbox{width:16px;height:16px;cursor:pointer;accent-color:var(--G);flex-shrink:0}
+.scr-row.selected{background:#f5f0ff!important}
+.scr-row.selected td:first-child{background:#eeedfe}
+
+/* ── MISC ── */
+.nxt-tag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--warn);background:var(--warnbg);padding:2px 8px;border-radius:4px}
+.empty-state{text-align:center;padding:36px;color:var(--ink3);font-size:13px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--Gl)}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-eye">VIDPRO · 2026</div>
+    <div class="sb-title">短影音<br>後製主控台<em>Video Production OS</em></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-lbl">模組</div>
+    <div class="nav-item active" onclick="go('dashboard')"><span class="nav-icon">◼</span>專案總覽<span class="nav-cnt" id="cnt-d">—</span></div>
+    <div class="nav-item" onclick="go('production')"><span class="nav-icon">▷</span>製作追蹤<span class="nav-cnt alert" id="cnt-p">—</span></div>
+    <div class="nav-item" onclick="go('clients')"><span class="nav-icon">▣</span>客戶 CRM<span class="nav-cnt" id="cnt-c">—</span></div>
+    <div class="nav-item" onclick="go('scripts')"><span class="nav-icon">▤</span>腳本庫<span class="nav-cnt" id="cnt-s">—</span></div>
+    <div class="nav-item" onclick="openSheetsLink()" style="position:relative"><span class="nav-icon">◎</span>金流管理<span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);margin-left:auto">↗</span></div>
+    <div class="nav-item" onclick="go('schedule')"><span class="nav-icon">▦</span>拍攝行程<span class="nav-cnt" id="cnt-sch">—</span></div>
+  </nav>
+  <div class="sb-bottom">
+    <div class="save-dot ok" id="save-dot"></div>
+    <span class="save-txt" id="save-txt">已儲存</span>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+  <header class="topbar">
+    <div style="display:flex;align-items:baseline">
+      <div class="page-title" id="pt">專案總覽</div>
+      <div class="page-sub" id="ps">PROJECT OVERVIEW</div>
+    </div>
+    <div class="topbar-r">
+      <div class="search-wrap">
+        <input class="search" type="text" placeholder="搜尋…" id="qs" oninput="doSearch(this.value)">
+        <span class="search-clear" id="search-clear" onclick="clearSearch()">×</span>
+      </div>
+      <div class="date-chip" id="today">—</div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ① 專案總覽 -->
+    <div class="module active" id="module-dashboard">
+      <div class="stat-strip" id="stats"></div>
+
+      <!-- 待辦 + 互動：上方並排，各最多3列 -->
+      <div class="two-col" style="margin-bottom:20px">
+        <div>
+          <div class="section-head"><span class="section-label">待辦行動</span></div>
+          <div id="nxt-actions"></div>
+        </div>
+        <div>
+          <div class="section-head">
+            <span class="section-label">最新互動</span>
+            <button class="icon-btn" onclick="openModal('modal-int')">＋ 新增</button>
+          </div>
+          <div id="dash-ints"></div>
+        </div>
+      </div>
+
+      <!-- 所有專案：全寬表格 -->
+      <div class="section-head">
+        <span class="section-label">所有專案</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="filter-row" id="f-d">
+            <button class="pill active" onclick="fD('all',this)">全部</button>
+            <button class="pill" onclick="fD('洽談中',this)">洽談中</button>
+            <button class="pill" onclick="fD('已簽約',this)">已簽約</button>
+            <button class="pill" onclick="fD('企劃中',this)">企劃中</button>
+            <button class="pill" onclick="fD('製作中',this)">製作中</button>
+            <button class="pill" onclick="fD('已交付',this)">已交付</button>
+          </div>
+          <button class="icon-btn primary" onclick="openModal('modal-proj')">＋ 新增專案</button>
+        </div>
+      </div>
+      <div class="tbox"><table>
+        <thead><tr><th>客戶</th><th>階段 ✎</th><th>影片進度</th><th>拍攝日</th><th>預計交付 ✎</th><th>期數</th><th>付款 ✎</th><th>連結</th></tr></thead>
+        <tbody id="tb-d"></tbody>
+      </table></div>
+    </div>
+
+    <!-- ② 製作追蹤 -->
+    <div class="module" id="module-production">
+      <div class="section-head">
+        <span class="section-label">影片製作進度 — 可編輯欄位有淡綠底色</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <div class="filter-row" id="f-prod">
+            <button class="pill active" onclick="fProd('all',this)">全部</button>
+            <button class="pill" onclick="fProd('進行中',this)">進行中</button>
+            <button class="pill" onclick="fProd('已完成',this)">已完成</button>
+          </div>
+          <select id="editor-filter" class="edit-sel" onchange="onEditorFilterChange(this.value)" style="font-size:12px;padding:5px 10px;border-radius:7px">
+            <option value="">所有剪輯師</option>
+          </select>
+          <button class="icon-btn" id="copy-editor-link-btn" onclick="copyEditorViewLink()" style="display:none;white-space:nowrap">🔗 複製專屬連結</button>
+          <button class="icon-btn primary" onclick="openModal('modal-proj')">＋ 新增專案</button>
+        </div>
+      </div>
+      <div id="prod-list"></div>
+    </div>
+
+    <!-- ③ 客戶 CRM -->
+    <div class="module" id="module-clients">
+      <div class="section-head">
+        <span class="section-label">客戶資料庫</span>
+        <div style="display:flex;gap:6px">
+          <div class="filter-row" id="f-c">
+            <button class="pill active" onclick="fC('all',this)">全部</button>
+            <button class="pill" onclick="fC('洽談中',this)">洽談中</button>
+            <button class="pill" onclick="fC('合作中',this)">合作中</button>
+            <button class="pill" onclick="fC('暫停',this)">暫停</button>
+            <button class="pill" onclick="fC('結案',this)">結案</button>
+          </div>
+          <button class="icon-btn primary" onclick="openModal('modal-client')">＋ 新增客戶</button>
+        </div>
+      </div>
+      <div class="client-grid" id="cg"></div>
+    </div>
+
+    <!-- ④ 腳本庫 -->
+    <div class="module" id="module-scripts">
+      <div class="section-head">
+        <span class="section-label">腳本庫 — 確認狀態可一鍵切換</span>
+        <div style="display:flex;gap:6px">
+          <div class="filter-row" id="f-s">
+            <button class="pill active" onclick="fS('all',this)">全部</button>
+            <button class="pill" onclick="fS('趨勢',this)">趨勢</button>
+            <button class="pill" onclick="fS('觀念',this)">觀念</button>
+            <button class="pill" onclick="fS('技術',this)">技術</button>
+            <button class="pill" onclick="fS('日常',this)">日常</button>
+            <button class="pill" onclick="fS('未確認',this)">未確認</button>
+          </div>
+          <button class="icon-btn primary" onclick="openModal('modal-script')">＋ 新增腳本</button>
+        </div>
+      </div>
+      <!-- 購物車狀態列 -->
+      <div class="cart-bar empty" id="cart-bar">
+        <span class="cart-count" id="cart-count">0 個腳本已選</span>
+        <div class="cart-selects">
+          <select class="cart-sel" id="cart-client" onchange="onCartClientChange()"><option value="">選擇客戶…</option></select>
+          <select class="cart-sel" id="cart-proj"><option value="">選擇專案…</option></select>
+        </div>
+        <button class="cart-btn" onclick="addCartToProject()">放入專案 ▷</button>
+        <button class="cart-clear" onclick="clearCart()">取消</button>
+      </div>
+
+      <div class="tbox"><table>
+        <thead><tr><th></th><th>腳本編號</th><th>標題</th><th>專案</th><th>類別</th><th>摘要</th><th>確認</th><th>剪輯師 ✎</th></tr></thead>
+        <tbody id="tb-s"></tbody>
+      </table></div>
+    </div>
+
+    <!-- ⑤ 金流管理 → 外部連結 -->
+    <div class="module" id="module-payments">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center">
+        <div style="font-size:48px">📊</div>
+        <div style="font-size:20px;font-weight:900;color:var(--G)">金流管理</div>
+        <div style="font-size:14px;color:var(--ink3);max-width:320px;line-height:1.7">帳務資料存放在 Google Sheets，與會計共同維護。<br>點下方按鈕直接開啟。</div>
+        <a href="https://docs.google.com/spreadsheets/d/REPLACE_WITH_YOUR_SHEET_ID/edit" target="_blank" class="icon-btn primary" style="font-size:14px;padding:10px 28px;text-decoration:none;margin-top:8px">▷ 開啟帳務 Google Sheets</a>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:4px">在新視窗開啟</div>
+      </div>
+    </div>
+
+
+    <!-- ⑥ 拍攝行程 -->
+    <div class="module" id="module-schedule">
+      <div class="sch-toolbar">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="sch-view-btn active" id="sv-year" onclick="switchSchView('year')">年視圖</button>
+          <button class="sch-view-btn" id="sv-month" onclick="switchSchView('month')">月視圖</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px" id="month-nav" style="display:none">
+          <button class="icon-btn" onclick="changeMonth(-1)">‹</button>
+          <span id="month-label" style="font-size:14px;font-weight:700;color:var(--G);min-width:90px;text-align:center"></span>
+          <button class="icon-btn" onclick="changeMonth(1)">›</button>
+          <button class="icon-btn" onclick="goToday()">今天</button>
+        </div>
+        <button class="icon-btn primary" onclick="openModal('modal-shoot')">＋ 新增拍攝</button>
+      </div>
+      <div id="sch-year" class="sch-year-wrap"></div>
+      <div id="sch-month" style="display:none"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- 新增拍攝排程 -->
+<div class="modal-bg" id="modal-shoot" onclick="if(event.target===this)closeModal('modal-shoot')">
+  <div class="modal">
+    <h3>新增拍攝排程</h3>
+    <div class="f2">
+      <div class="fr"><label>拍攝日期</label><input id="ns2-date" type="date"></div>
+      <div class="fr"><label>客戶</label><select id="ns2-client"><option value="">選擇客戶…</option></select></div>
+    </div>
+    <div class="fr"><label>連結專案</label><select id="ns2-proj"><option value="">選擇專案…</option></select></div>
+    <div class="fr"><label>地點</label><input id="ns2-loc" placeholder="例：台北市大安區 ○○髮廊"></div>
+    <div class="fr"><label>備註</label><textarea id="ns2-notes" placeholder="拍攝備註、注意事項…"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-shoot')">取消</button>
+      <button class="btn-p" onclick="saveNewShoot()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- 腳本內容彈窗 -->
+<div class="modal-bg" id="modal-script-view" onclick="if(event.target===this)closeModal('modal-script-view')">
+  <div class="modal" style="width:600px;max-height:88vh;overflow-y:auto">
+
+    <!-- 固定 Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid var(--border);position:sticky;top:0;background:var(--white);z-index:1">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:1px;margin-bottom:3px" id="sv-id">A0000</div>
+        <div style="font-size:17px;font-weight:900;color:var(--G);margin-bottom:6px" id="sv-title">影片標題</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="sv-tags"></div>
+      </div>
+      <button class="btn-c" onclick="closeModal('modal-script-view')" style="flex-shrink:0;margin-left:12px;padding:5px 14px">關閉</button>
+    </div>
+
+    <!-- 簡述 -->
+    <div style="margin-bottom:12px">
+      <div class="sv-field-label">簡述</div>
+      <div class="sv-field-box" id="sv-summary">—</div>
+    </div>
+
+    <!-- 腳本大綱 -->
+    <div style="margin-bottom:12px">
+      <div class="sv-field-label">腳本大綱</div>
+      <div class="sv-field-box sv-field-pre" id="sv-outline">—</div>
+    </div>
+
+    <!-- 重點乾貨 -->
+    <div style="margin-bottom:12px">
+      <div class="sv-field-label">重點乾貨</div>
+      <div class="sv-field-box sv-field-pre" id="sv-keypoints">—</div>
+    </div>
+
+    <!-- 備註 -->
+    <div style="margin-bottom:12px">
+      <div class="sv-field-label">備註</div>
+      <div class="sv-field-box" id="sv-notes-script">—</div>
+    </div>
+
+    <!-- 外部連結 -->
+    <div style="margin-bottom:16px">
+      <div class="sv-field-label">外部連結</div>
+      <div class="sv-field-box" id="sv-extlink">—</div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border)">
+      <div id="sv-confirm"></div>
+      <button class="icon-btn" onclick="goToScript()">▤ 前往腳本庫</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- 影片備註彈窗 -->
+<div class="modal-bg" id="modal-note" onclick="if(event.target===this)saveAndCloseNote()">
+  <div class="modal" style="width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-bottom:3px" id="note-vid-label">—</div>
+        <div style="font-size:15px;font-weight:900;color:var(--G)" id="note-title-label">影片備註</div>
+      </div>
+      <button class="btn-c" onclick="saveAndCloseNote()" style="padding:5px 14px">儲存關閉</button>
+    </div>
+    <input type="hidden" id="note-vid-id">
+    <textarea id="note-content" style="width:100%;min-height:200px;border:1.5px solid var(--border2);border-radius:10px;padding:12px 14px;font-family:var(--ff);font-size:13px;color:var(--ink);line-height:1.8;resize:vertical;outline:none;transition:border-color .15s" placeholder="在這裡填寫備註…" onfocus="this.style.borderColor='var(--G)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    <div style="font-size:11px;color:var(--ink3);margin-top:8px;font-family:var(--mono)">點擊視窗外也會自動儲存</div>
+  </div>
+</div>
+
+<!-- 新增定期方案 -->
+<div class="modal-bg" id="modal-recurring" onclick="if(event.target===this)closeModal('modal-recurring')">
+  <div class="modal" style="width:480px">
+    <h3>新增長期定期方案</h3>
+    <div class="f2">
+      <div class="fr"><label>客戶</label><select id="rc-client"><option value="">選擇客戶…</option></select></div>
+      <div class="fr"><label>專案代號</label><input id="rc-pid" placeholder="V-C011-02"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>每期金額（元）</label><input id="rc-amount" type="number" placeholder="14000"></div>
+      <div class="fr"><label>付款類型</label>
+        <select id="rc-type"><option>月費</option><option>訂金</option><option>尾款</option><option>全額</option></select>
+      </div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>總期數</label><input id="rc-total" type="number" placeholder="12" min="1" max="36"></div>
+      <div class="fr"><label>第一期應付日</label><input id="rc-start" type="date"></div>
+    </div>
+    <div class="fr"><label>每幾個月付一次</label>
+      <select id="rc-interval">
+        <option value="1">每個月</option>
+        <option value="2">每兩個月</option>
+        <option value="3">每季（每三個月）</option>
+      </select>
+    </div>
+    <div class="fr"><label>付款編號前綴</label><input id="rc-prefix" placeholder="PAY-202604" value="PAY-202604"></div>
+    <div style="background:var(--Gw);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--ink3);margin-top:4px">
+      系統會自動產生每一期的付款紀錄，狀態統一為「待付款」，你可以逐期標記已付。
+    </div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-recurring')">取消</button>
+      <button class="btn-p" onclick="saveRecurring()">產生方案</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- 新增專案 -->
+<div class="modal-bg" id="modal-proj" onclick="if(event.target===this)closeModal('modal-proj')">
+  <div class="modal">
+    <h3>新增專案</h3>
+    <div class="f2">
+      <div class="fr"><label>客戶編號</label>
+        <select id="np-client-code"><option value="">選擇客戶…</option></select>
+      </div>
+      <div class="fr"><label>專案代號</label><input id="np-id" placeholder="V-C001-01"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>期數</label><input id="np-period" placeholder="1/1"></div>
+      <div class="fr"><label>影片數量</label><input id="np-count" type="number" placeholder="10"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>拍攝日期</label><input id="np-shoot" type="date" oninput="autoFillDelivery()"></div>
+      <div class="fr"><label>預計交付日 <span style="font-size:10px;color:var(--ink3);font-weight:400">（拍攝後30工作天，可手動調整）</span></label><input id="np-est-delivery" type="date"></div>
+    </div>
+    <div class="f2">
+      <div class="fr" style="display:none"><label>dummy</label></div>
+      <div class="fr"><label>專案階段</label>
+        <select id="np-stage">
+          <option>洽談中</option><option>已簽約</option><option>企劃中</option>
+          <option>已排程</option><option>製作中</option><option>審核中</option>
+          <option>已交付</option><option>已結案</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr"><label>付款狀態</label>
+      <select id="np-pay"><option>待付款</option><option>已付款</option></select>
+    </div>
+    <div class="fr"><label>交付連結</label><input id="np-delivery" placeholder="Google Sheets 交付清單連結"></div>
+    <div class="fr"><label>原始腳本連結</label><input id="np-brief" placeholder="提供給客戶的腳本 Drive 連結"></div>
+    <div class="fr"><label>備註</label><textarea id="np-notes" placeholder="專案備註…"></textarea></div>
+    <div class="fr"><label>下一步行動</label><input id="np-action" placeholder="例：3/18 檔案整理"></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-proj')">取消</button>
+      <button class="btn-p" onclick="saveNewProject()">建立專案</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增影片 -->
+<div class="modal-bg" id="modal-video" onclick="if(event.target===this)closeModal('modal-video')">
+  <div class="modal">
+    <h3>新增影片</h3>
+    <input type="hidden" id="nv-pid">
+    <div class="fr"><label>選擇腳本（選填）</label>
+      <select id="nv-script" onchange="onVideoScriptChange()"><option value="">不連結腳本，手動填入</option></select>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>影片編號</label><input id="nv-vid" placeholder="V-C001-01-V01"></div>
+      <div class="fr"><label>影片標題</label><input id="nv-title" placeholder="EP01_你好厲害"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>剪輯師</label><input id="nv-editor" placeholder="品婕"></div>
+      <div class="fr"><label>狀態</label>
+        <select id="nv-status">
+          <option>素材整理</option><option>待剪輯</option><option>剪輯中</option>
+          <option>審核中</option><option>已交付</option><option>已歸檔</option>
+        </select>
+      </div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>完成日期</label><input id="nv-done" type="date"></div>
+      <div class="fr"><label>觀看數</label><input id="nv-views" placeholder="5.1萬"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>素材連結</label><input id="nv-footage" placeholder="Drive 素材資料夾連結"></div>
+      <div class="fr"><label>完成檔連結</label><input id="nv-final" placeholder="Drive 完成版檔案連結"></div>
+    </div>
+    <div class="fr"><label>IG 發布連結</label><input id="nv-link" placeholder="https://www.instagram.com/reel/…"></div>
+    <div class="fr"><label>備註</label><textarea id="nv-notes" placeholder="剪輯備註…"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-video')">取消</button>
+      <button class="btn-p" onclick="saveNewVideo()">新增影片</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增互動 -->
+<div class="modal-bg" id="modal-int" onclick="if(event.target===this)closeModal('modal-int')">
+  <div class="modal">
+    <h3>新增互動紀錄</h3>
+    <div class="f2">
+      <div class="fr"><label>日期</label><input id="ni-date" type="date"></div>
+      <div class="fr"><label>客戶</label><select id="ni-client"><option value="">選擇客戶…</option></select></div>
+    </div>
+    <div class="fr"><label>管道</label>
+        <select id="ni-ch"><option>Line</option><option>電話</option><option>Email</option><option>現場</option><option>Google Meet</option></select>
+      </div>
+    <div class="fr"><label>對話重點</label><textarea id="ni-text" placeholder="這次互動的重點內容…"></textarea></div>
+    <div class="f2">
+      <div class="fr"><label>訊號</label>
+        <select id="ni-sig"><option>積極</option><option>熱情</option><option>一般</option><option>有回覆但不多</option><option>沒反應</option></select>
+      </div>
+      <div class="fr"><label>下一步</label><input id="ni-next" placeholder="拍攝、修改腳本…"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-int')">取消</button>
+      <button class="btn-p" onclick="saveNewInteraction()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增客戶 -->
+<div class="modal-bg" id="modal-client" onclick="if(event.target===this)closeModal('modal-client')">
+  <div class="modal">
+    <h3>新增客戶</h3>
+    <div class="f2">
+      <div class="fr"><label>客戶編號</label><input id="nc-code" placeholder="C032"></div>
+      <div class="fr"><label>店家名稱</label><input id="nc-name" placeholder="曼都恆星"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>聯絡人</label><input id="nc-contact" placeholder="芳容"></div>
+      <div class="fr"><label>職稱</label><input id="nc-title" placeholder="店經理"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>社群帳號</label><input id="nc-social" placeholder="mentor_beata"></div>
+      <div class="fr"><label>狀態</label>
+        <select id="nc-status"><option>洽談中</option><option>合作中</option><option>暫停</option><option>結案</option></select>
+      </div>
+    </div>
+    <div class="fr"><label>備註</label><textarea id="nc-notes" placeholder="注意事項、合作紀錄…"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-client')">取消</button>
+      <button class="btn-p" onclick="saveNewClient()">建立客戶</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編輯客戶 -->
+<div class="modal-bg" id="modal-edit-client" onclick="if(event.target===this)closeModal('modal-edit-client')">
+  <div class="modal">
+    <h3>編輯客戶資料</h3>
+    <input type="hidden" id="ec-code">
+    <div class="f2">
+      <div class="fr"><label>店家名稱</label><input id="ec-name"></div>
+      <div class="fr"><label>聯絡人</label><input id="ec-contact"></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>職稱</label><input id="ec-title"></div>
+      <div class="fr"><label>社群帳號</label><input id="ec-social"></div>
+    </div>
+    <div class="fr"><label>狀態</label>
+      <select id="ec-status"><option>洽談中</option><option>合作中</option><option>暫停</option><option>結案</option></select>
+    </div>
+    <div class="fr"><label>備註</label><textarea id="ec-notes"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-edit-client')">取消</button>
+      <button class="btn-p" onclick="saveEditClient()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增腳本 -->
+<div class="modal-bg" id="modal-script" onclick="if(event.target===this)closeModal('modal-script')">
+  <div class="modal">
+    <h3>新增腳本</h3>
+    <div class="fr"><label>腳本編號</label><input id="ns-id" placeholder="A0025"></div>
+    <input type="hidden" id="ns-vid">
+    <input type="hidden" id="ns-pid">
+    <div class="f2">
+      <div class="fr"><label>類別</label>
+        <select id="ns-cat"><option>趨勢</option><option>觀念</option><option>技術</option><option>日常</option></select>
+      </div>
+      <div class="fr"><label>子類別</label><input id="ns-subcat" placeholder="染髮、燙髮…"></div>
+    </div>
+    <div class="fr"><label>影片標題</label><input id="ns-title" placeholder="腳本標題"></div>
+    <div class="fr"><label>簡述</label><textarea id="ns-summary" placeholder="一句話說明這支影片的核心概念…" rows="2"></textarea></div>
+    <div class="fr"><label>腳本大綱</label><textarea id="ns-outline" placeholder="起承轉合的腳本結構…" rows="4"></textarea></div>
+    <div class="fr"><label>重點乾貨</label><textarea id="ns-keypoints" placeholder="影片中要傳遞的關鍵資訊…" rows="3"></textarea></div>
+    <div class="fr"><label>拍攝需求</label><textarea id="ns-shootreq" placeholder="需要準備的道具、場景、角度…" rows="2"></textarea></div>
+    <div class="fr"><label>外部連結</label><input id="ns-extlink" placeholder="參考資料、靈感來源連結…"></div>
+    <div class="f2">
+      <div class="fr"><label>剪輯師</label><input id="ns-editor" placeholder="阿甫"></div>
+      <div class="fr"><label>客戶確認</label>
+        <select id="ns-confirmed"><option value="false">待確認</option><option value="true">已確認</option></select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-script')">取消</button>
+      <button class="btn-p" onclick="saveNewScript()">新增腳本</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增付款 -->
+<div class="modal-bg" id="modal-pay" onclick="if(event.target===this)closeModal('modal-pay')">
+  <div class="modal">
+    <h3>新增付款紀錄</h3>
+    <div class="f2">
+      <div class="fr"><label>付款編號</label><input id="np2-id" placeholder="PAY-202604-001"></div>
+      <div class="fr"><label>客戶</label><select id="np2-client"><option value="">選擇客戶…</option></select></div>
+    </div>
+    <div class="fr"><label>專案代號</label><input id="np2-pid" placeholder="V-C001-01"></div>
+    <div class="f2">
+      <div class="fr"><label>金額（元）</label><input id="np2-amount" type="number" placeholder="10000"></div>
+      <div class="fr"><label>類型</label>
+        <select id="np2-type"><option>訂金</option><option>尾款</option><option>全額</option><option>月費</option></select>
+      </div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>狀態</label>
+        <select id="np2-status"><option>待付款</option><option>已付款</option></select>
+      </div>
+      <div class="fr"><label>應付日期</label><input id="np2-due" type="date"></div>
+    </div>
+    <div class="fr"><label>實際付款日</label><input id="np2-paid" type="date"></div>
+    <div class="fr"><label>備註</label><textarea id="np2-notes" placeholder="付款備註…"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeModal('modal-pay')">取消</button>
+      <button class="btn-p" onclick="saveNewPayment()">新增</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ INITIAL DATA ══════════════════════════════════════════════════
+const INIT = {
+  clients:[
+    {code:"C001",name:"曼都恆星",contact:"芳容",title:"店經理",social:"mentor_beata",status:"合作中",notes:"VVIP，以最優惠價格服務 ($10,000)"},
+    {code:"C003",name:"Bess",contact:"Sara",title:"主理人",social:"saraliu_223",status:"暫停",notes:"第一次試拍，第二次續約兩個月"},
+    {code:"C008",name:"Most",contact:"Sinco",title:"主理人",social:"most_hair_salon",status:"合作中",notes:"很凹，一定要口說之後留下文字紀錄"},
+    {code:"C010",name:"朵研髮藝",contact:"Yuri",title:"主理人",social:"kori.yuri",status:"暫停",notes:"兩次合作皆 $13,000"},
+    {code:"C011",name:"曼都常樂",contact:"毛貴人",title:"主理人",social:"maoguiren",status:"合作中",notes:"年度優惠 ($168,000 + 車資) 12個月。VIP，常常介紹客人"},
+    {code:"C018",name:"GURU咕鹿",contact:"紫霞",title:"主理人",social:"",status:"合作中",notes:"客戶有點緊張，需要提前佈局"},
+    {code:"C025",name:"蘊洛髮品",contact:"婷婷",title:"主理人",social:"",status:"合作中",notes:"想要讓人透過影片認識他"},
+    {code:"C027",name:"曼都朴子",contact:"曉妮",title:"店長",social:"",status:"合作中",notes:"毛貴人介紹"}
+  ],
+  projects:[
+    {id:"V-C015-01",client_code:"C015",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2025-12-09",stage:"已交付",payment:"已付款",notes:"曼都10部，比較沒有社群經驗",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=839159546&single=true",brief_link:""},
+    {id:"V-C001-03",client_code:"C001",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2025-12-15",stage:"已交付",payment:"已付款",notes:"VIP",next_action:"",delivery_link:"",brief_link:""},
+    {id:"V-C008-02",client_code:"C008",period:"1/12",video_count:"10",est_delivery:"",shoot_date:"2026-01-21",stage:"已交付",payment:"已付款",notes:"很凹，注意所有細節",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=653283889&single=true",brief_link:""},
+    {id:"V-C027-01",client_code:"C027",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2026-01-21",stage:"製作中",payment:"已付款",notes:"毛貴人介紹",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=258540257&single=true",brief_link:""},
+    {id:"V-C025-01",client_code:"C025",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2026-01-27",stage:"製作中",payment:"已付款",notes:"想要讓人透過影片認識他",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=1697921691&single=true",brief_link:""},
+    {id:"V-C011-02",client_code:"C011",period:"2/12",video_count:"10",est_delivery:"",shoot_date:"2026-02-12",stage:"製作中",payment:"已付款",notes:"VIP，常常介紹客人來。不要卡通人偶",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=340886688&single=true",brief_link:""},
+    {id:"V-C018-01",client_code:"C018",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2026-03-04",stage:"製作中",payment:"已付款",notes:"客戶有點緊張，屬於會需要提前佈局的人",next_action:"",delivery_link:"",brief_link:""},
+    {id:"V-C008-02-02",client_code:"C008",period:"2/12",video_count:"10",est_delivery:"",shoot_date:"2026-03-13",stage:"製作中",payment:"已付款",notes:"很凹，第二期的拍攝往後延一個月",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=653283889&single=true",brief_link:""},
+    {id:"V-C001-04",client_code:"C001",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2026-03-16",stage:"審核中",payment:"已付款",notes:"VIP，要預約第五次拍攝",next_action:"3/18 檔案整理",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=1419615261&single=true",brief_link:""},
+    {id:"V-C011-02-03",client_code:"C011",period:"3/12",video_count:"10",est_delivery:"",shoot_date:"2026-03-23",stage:"企劃中",payment:"待付款",notes:"VIP",next_action:"",delivery_link:"",brief_link:""},
+    {id:"V-C003-02",client_code:"C003",period:"1/2",video_count:"10",est_delivery:"",shoot_date:"2026-04-17",stage:"企劃中",payment:"已付款",notes:"",next_action:"",delivery_link:"",brief_link:""},
+    {id:"V-C001-05",client_code:"C001",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2026-05-01",stage:"已簽約",payment:"待付款",notes:"VIP",next_action:"",delivery_link:"",brief_link:""}
+  ],
+  videos:[
+    {video_id:"V-C001-01-V009",project_id:"V-C001-03",title:"9.美髮生涯18年",status:"已歸檔",editor:"品婕",done_date:"2025-09-18",publish_link:"https://www.instagram.com/reel/DOu1rqmgRgp/",views:"3.9萬",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C001-01-V008",project_id:"V-C001-03",title:"8.被美髮耽誤的明星",status:"已歸檔",editor:"品婕",done_date:"2025-09-06",publish_link:"https://www.instagram.com/reel/DOQvQt2gUOA/",views:"6314",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C001-01-V005",project_id:"V-C001-03",title:"5.素人改造5分鐘",status:"已歸檔",editor:"品婕",done_date:"2025-08-30",publish_link:"https://www.instagram.com/reel/DN-z5wYDeza/",views:"5.1萬",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C001-02-V009",project_id:"V-C008-02",title:"EP09_你們評評理",status:"已歸檔",editor:"外部_阿甫",done_date:"2026-02-02",publish_link:"https://www.instagram.com/reel/DUPPncRgVfZ/",views:"9178",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C001-02-V008",project_id:"V-C008-02",title:"EP08_做這件事的都是真愛",status:"已歸檔",editor:"外部_阿甫",done_date:"2026-01-27",publish_link:"https://www.instagram.com/reel/DUA8_Q_ARGh/",views:"4333",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C027-01-V001",project_id:"V-C027-01",title:"護髮油到底要抹多少？",status:"已交付",editor:"阿甫",done_date:"",publish_link:"",views:"",notes:"客戶要求修改：第二段節奏加快，背景音樂換活潑的，預計3天內完成。",footage_link:"",final_link:""},
+    {video_id:"V-C027-01-V002",project_id:"V-C027-01",title:"設計師的腰包裡到底裝了什麼？",status:"已交付",editor:"阿甫",done_date:"",publish_link:"",views:"",notes:"",footage_link:"",final_link:""},
+    {video_id:"V-C011-02-V001",project_id:"V-C011-02",title:"開運色：春天人的好運髮色",status:"剪輯中",editor:"",done_date:"",publish_link:"",views:"",notes:"粗剪已完成，等待老師確認剪輯節奏。\n\n注意事項：\n- 開頭3秒要有強烈視覺衝擊\n- 字幕顏色統一用白色\n- 結尾要加上預約資訊",footage_link:"",final_link:""},
+    {video_id:"V-C011-02-V002",project_id:"V-C011-02",title:"燙直睡醒還翹？3分鐘神救急",status:"剪輯中",editor:"",done_date:"",publish_link:"",views:"",notes:"素材已整理完畢，等待剪輯。\n音效需要重新錄製旁白。",footage_link:"",final_link:""},
+    {video_id:"V-C018-01-V001",project_id:"V-C018-01",title:"EP01_腳本待確認",status:"待剪輯",editor:"",done_date:"",publish_link:"",views:"",notes:"腳本修改中",footage_link:"",final_link:""},
+    {video_id:"V-C015-01-V001",project_id:"V-C015-01",title:"捲度維持神技巧",status:"已交付",editor:"峻恩",done_date:"2026-01-13",publish_link:"",views:"",notes:"",footage_link:"",final_link:""}
+  ],
+  scripts:[
+    {script_id:"A0002",video_id:"V-C011-02-V001",project_id:"V-C011-02",category:"趨勢",sub_category:"染髮",title:"開運色：春天人的好運髮色",summary:"春夏秋冬四種類型的人有各自不同適合的髮色，適合春天人的髮色有這些",outline:"起：(春夏秋冬四季人)\n你知道有春夏秋冬四種人嗎?\n\n承：(舉例春天人)\n每個人都有自己的季節，每個季節有適合的顏色\n你(拍攝者)就適合春天，暖色系的類型\n簡易分辨_膚色，瞳孔，配件\n\n轉：(適合和不適合春天人的髮色)\n適合的髮色：(提供照片)\n不適合的髮色：(提供照片)\n\n合：(呼籲預約)\n不知道自己是哪個我來幫你看",key_points:"避雷指南：春天人（暖調/活潑）千萬別染「冷灰色系」！除非你每天全妝，否則素顏看起來會非常沒精神、顯髒。\n觀念導正：想染流行的「霧感色」不一定要冷色調！**「乾燥玫瑰」、「霧感暖橘」**既有流行的霧面質感，又顯白有活力。\n懶人優勢：設計師親身實測，暖色調CP值更高。\n冷色調：褪色快、易變黃稻草、需用矯色洗髮精。\n暖色調：褪色慢、顏色依然柔和、不用天天補色，適合每天洗頭的懶人。",shoot_req:"",copywriting:"為什麼有些髮色在別人身上超美，\n換到你身上卻顯臉黃、顯氣質差？\n\n每個人都是四季之一：\n春天人 → 暖和、明亮、溫柔\n夏天人 → 清爽、柔和、冷調\n秋天人 → 深邃、沉穩、大地色\n冬天人 → 冷感、鮮明、高對比\n\n怎麼判斷自己？\n1.看膚色溫度\n2.瞳孔顏色\n3.配件上身後的整體感受\n\n你是哪個季節的人？\n我可以幫你看。\n\n#雲林髮廊 #女生髮型 #春天人 #髮色搭配",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0005",video_id:"V-C011-02-V002",project_id:"V-C008-02",category:"觀念",sub_category:"燙髮",title:"燙直睡醒還翹？3分鐘神救急",summary:"好多人以為縮毛矯正燙了就不會變形，但還是會，只是翹翹的時候噴水就好",outline:"起：(激動的提問)\n為什麼燙完縮毛之後還是亂翹?\n\n承：(有耐心地回覆與提問)\n你出門前有噴水嗎? (沒有)\n\n轉：(說明縮毛矯正的整理方式)\n縮毛矯正會讓頭髮直，但如果有壓、扭、轉等等的，還是會暫時變形\n這時只要「噴髮妝水」手梳一下就回來了\n\n合：(呼籲留言)\n任何縮毛矯正百問必答！想問留言",key_points:"破解迷思：縮毛矯正不是鋼筋水泥，睡覺壓到枕頭（特別是鎖骨長度的一刀切）本來就會微彎，這是正常的物理現象。\n整理神器：早上起床翹或是毛躁，千萬別只噴水（台灣人頭髮易油/自然捲，噴水會更毛）。\n\n關鍵差異：\n噴水：會毛躁，噴完還得抹油，耗時5分鐘。\n噴髮妝水：含保濕與油脂成分，噴完吹乾就順，只要3分鐘。\n\n時間價值：沒燙髮整理要30分鐘；燙完縮毛+正確整理只要3分鐘。",shoot_req:"",copywriting:"睡醒頭毛又翹起來？😱\n\n燙了縮毛矯正還是會變形，這很正常！\n關鍵就是「噴濕+梳一下」\n\n出門前3分鐘，髮妝水救你一命\n\n你也有這困擾嗎？\n縮毛矯正百問都能問，留言告訴我\n\n#縮毛矯正 #整理技巧 #髮型救急",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0006",video_id:"",project_id:"",category:"趨勢",sub_category:"髮型",title:"春天就要露脖子！女人味關鍵",summary:"脖子是女生魅力的關鍵之一！長長的脖子讓人感覺年輕有活力，這幾款髮型可以拉長脖子還能修飾臉型",outline:"起：(提問切入主題)\n女生最性感的部位是哪？（回答脖子)\n\n承：(說明看脖子的原因)\n一般人都看腿，看脖子可以看出這個人精不精緻\n\n轉：(說明脖子顯露出的重點)\n一般人很少注意脖子，但脖子很常被忽略，選對髮型可以拉長脖子，也可以顯臉小\n\n合:（呼籲快去剪髮)\n想要變精緻，快去剪這五款髮型",key_points:"",shoot_req:"可以修長脖子的髮型照片",copywriting:"",external_link:"https://www.japaholic.com/tw/article/detail/21658",confirmed:false,editor:""},
+    {script_id:"A0007",video_id:"V-C027-01-V001",project_id:"V-C027-01",category:"技術",sub_category:"護髮",title:"護髮油到底要抹多少？",summary:"客人覺得抹護髮油頭髮會變一條一條的像沒洗頭？怎麼用才對",outline:"起：(NG 破題)\n護髮油真的難用，用完都變油條？\n\n承：(黃金用量與位置)\n短髮/中長髮： 一顆「紅豆」大小。\n長髮/受損髮： 一枚「10元硬幣」大小。\n重點說明： 「切記！只能抹在『耳下』到髮尾，絕對不要碰到頭皮！」\n\n轉：(關鍵手法：搓熱)\n雙手掌心用力搓揉，把油推開直到手掌發熱。\n是用抓的不是用抹的，每根頭髮才會把油吃進去，少量多餐\n\n合：(呼籲留言)\n學會了嗎？",key_points:"",shoot_req:"",copywriting:"「護髮油超難用，擦完頭髮一條一條像沒洗頭！」\n不要再抱怨拉~真的不是油的問題啦～\n只要掌握這幾個小撇步，頭髮馬上順到發亮：\n\n✅ 用量抓好：短、中長髮只要「一顆紅豆」大小，長髮或受損髮大概「10元硬幣」。\n✅ 絕對不碰頭皮：切記！只能抹在「耳下到髮尾」！\n✅ 關鍵步驟：先把油在掌心用力搓熱，然後用「抓」的，讓每根頭髮把油吃進去（不是死命往下抹喔），記得少量多餐！\n\n學會了嗎？今晚洗完頭馬上試試看！",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0008",video_id:"V-C027-01-V002",project_id:"V-C027-01",category:"日常",sub_category:"工作現場",title:"設計師的腰包裡到底裝了什麼？開箱我的吃飯傢伙",summary:"美髮師的腰包就像哆啦A夢的百寶袋，揭露到底放什麼，一包價值多少錢",outline:"起：(重量級秘密)\n你的黑色腰包，裡面有什麼？\n\n承：(展示內容)\n把東西一樣一樣拿出來擺在桌上。\n\n轉：(有特別的隱藏版小物也可以分享/計算價值)\n這一包比你的包還貴\n每一樣工具ＸＸＸ錢，用計算機一個一個計算出總價\n\n合：(呼籲互動)\n他們是陪我征戰嘉義美髮界的夥伴們\n不許你碰",key_points:"",shoot_req:"",copywriting:"這咖黑色腰包，承載了不僅是重量，還有你們變美的希望。",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0009",video_id:"",project_id:"V-C027-01",category:"日常",sub_category:"工作現場",title:"一間美髮店有多少梳子？",summary:"美髮師的梳子種類超多，這些都有不同用法嗎？",outline:"起：(數字揭密) \n我家只有 2 把梳子，美髮店到底有多少梳子？\n\n承：(畫面衝擊) \n（店內全部梳子） 圓梳、板梳、尖尾梳、排骨梳、按摩梳...隨便算一下超過 ＸＸ 把！\n\n轉：(專業價值) \n為什麼要這麼多？\n吹直、吹捲、刮蓬、挑染，每一把的功能都不一樣\n\n合：(呼籲留言) \n猜猜看，那我們的「髮夾」有幾支",key_points:"",shoot_req:"",copywriting:"你猜美髮店到底有幾把？\n圓梳、板梳、尖尾梳、排骨梳、按摩梳... 全部擺出來真的超壯觀\n\n每一把梳子都有它的專屬任務！\n吹直、吹捲、刮蓬、還是挑染，通通都要靠不同的梳子才能搞定，這就是我們的專業啦 ✨\n\n梳子就這麼多了...那大家猜猜看，我們的「髮夾」到底有幾支？留言猜數字！",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0010",video_id:"",project_id:"V-C027-01",category:"觀念",sub_category:"剪髮",title:"常剪頭髮會長比較快？",summary:"解釋頭髮生長原理，不會變快，但視覺上會變健康。",outline:"起：(迷思破解) \n是不是每個月修一下，頭髮長比較快？\n\n承：(原理解說) \n頭髮從頭皮長出來，剪髮尾跟生長速度沒關係\n\n\n轉：(剪髮的真實好處) \n雖然不會長比較快，但剪掉分岔，頭髮不會斷裂，就覺得長得快\n\n合：(呼籲留言) \n你在留長髮的過渡期嗎？",key_points:"修剪迷思：常剪頭髮反而能留長？是的，因為受損髮尾若不修剪，會因乾燥分叉而**「自行斷裂」**（像壁虎斷尾）。每個月修掉0.5-1公分，能防止頭髮自己斷掉，反而留得住長度。\n生長速度：\n有保養/修剪：約1年就能留長。\n不保養/不剪：可能3年長度都沒變（因為一直斷）。\n護髮差異：\n沙龍深層護髮：補充頭髮結構與蛋白質（地基）。\n居家保養（護髮素）：延續沙龍護髮的效果（維護）。兩者缺一不可。\n留長關鍵：想長得快要保養頭皮（根源）；想留得住要保養髮尾（不看斷）。",shoot_req:"",copywriting:"每個月修髮尾，頭髮真的會長比較快？\n\n「絕對不會！」\n頭髮是從頭皮長出來的\n你去剪髮尾\n跟它生長的速度一點關係都沒有啦\n\n\n但如果你不修\n乾燥分岔的髮尾就會一直往上裂、一直斷掉！\n\n把那些爛掉的髮尾修掉\n頭髮健康了、不會半路斷裂\n就可以順順地留下去\n視覺上當然會覺得「咦？頭髮好像長得比較快！」\n\n就是安內的唷！\n\n#嘉義髮廊 #剪髮",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0015",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"財務投資",title:"房產高手的「三不碰」投資心法！",summary:"想投資致富？設計師Iba直言：「先做好本業才有錢」。她分享自己擁有三間房的秘訣，在於前期「不買負債」（名牌包、好車），並堅持投資的三大原則：不貪心、不懂的不碰、見好就收。",outline:"起：(觀念導正)\n我想投資賺大錢，有什麼建議？\n\n承：(累積財富的秘密)\n我在三十幾歲前，完全不買負資產。車子能開就好、手機由公司配、不買精品包。\n\n轉：(投資三不碰心法)\n三個原則：第一不貪心、第二不懂的不碰、第三見好就收。\n\n合：(給忙碌者的建議)\n你的投資原則是什麼？底下留言跟我分享！",key_points:"本業優先：投資之前一定要先有錢，不用盲目跟風，做好本業、累積閒錢是第一步。\n拒絕負債：累積財富時期不買「負資產」（車子能開就好、不買精品包），把錢省下來投資，等到有獲利才犒賞自己（Iba這兩年才買第一個精品包，但已買三間房）。\n投資三原則：\n不貪心：見好就收，有賺就好，不一定要追高。\n不懂的不碰：只相信自己搞得懂的項目。朋友推薦的虛擬貨幣、美股若自己不懂絕對不碰。\n量力而為：絕不借錢投資、不動搖家庭根本",shoot_req:"",copywriting:"「我想投資賺大錢，有什麼建議？」\n每次被問到這個問題，我給的答案都很無聊「先把你現在的工作做好！」\n但這卻是不二法門！\n\n在三十幾歲以前，我對自己超級狠\n那個時候的我，堅持絕對不買「負資產」\n\n車子？能開能代步就好。\n手機？公司配什麼我就用什麼。\n精品包？在我的字典裡根本不存在。\n\n因為我知道，把站一整天辛苦賺來的錢實實在在留住，才有本金去談投資。\n\n#投資 #美髮師 #雲林髮廊",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0016",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"創業",title:"創業當老闆賺比較爽?過來人真心話",summary:"年輕人想創業，身邊卻一堆勸退聲音。資深老闆直言：老闆確實比較賺，但必須承擔比員工多得多的責任。面對崩潰日常，不能有情緒只能解決問題。給創業者的忠告是：給自己3-5年時間，初期別想風格，先想辦法「生存」才是王道。",outline:"起：(創業迷思)\n當老闆沒有比較賺?\n\n承：(代價與心態)\n賺得多是因為承擔得多。當老闆不能只顧自己利益，要顧員工。\n\n轉：(真實崩潰與後悔)\n給你重選一次，你還要當老闆嗎？\n我不要！ 因為每一件事都很崩潰啊\n\n合：(給創業者的忠告)\n給自己3到5年的時間。先想辦法生存下來，這才是最重要的。",key_points:"利潤與責任：老闆確實賺得比員工多，但這是正常的，因為老闆承擔的事情與責任也比別人多。\n老闆思維：\n不能只想到自己的利益，要顧到底下的員工。\n要有**「解決事情的能力」**，遇到問題（崩潰）時，要解決它而不是跟著情緒走。\n創業週期：創業要有恆心，至少給自己3到5年打基礎，不要一下沒賺錢就收起來。\n生存法則：剛開始創業**「先想辦法生存下來」**，活下來之後，才有資格去想風格或發展。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0017",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"信仰",title:"宗教狂熱份子來解答　迷信 vs. 信仰差在哪",summary:"被同事戲稱為「宗教狂熱份子」，但她認為自己只是喜歡跑廟宇、求心靈寄託，這跟「迷信」完全不同。影片解析如何正確看待算命與求籤：算命是為了在迷失時找方向，而不是盲目聽從；即便算命說不合，最終決定權還是在自己。",outline:"起：(標籤與爭議)\n我同事都笑我是宗教狂熱份子\n\n承：(觀念釐清)\n迷信是你喪失判斷力，算命說不行你就不做；信仰是把它當作心靈寄託，求一個方向\n\n轉：(算命的本質)\n算命是探索自我。如果在迷失方向時，去請祂給個指引。\n\n合：(信仰的智慧)\n我相信因果、會拜地藏王菩薩消冤親債主，這不是迷信，是本來就存在的事。\n你也會去算命找方向嗎？",key_points:"定義迷信 vs. 信仰：\n迷信：沒有分辨好壞的能力，一切以算命/神明為主。例如求到下下籤就直接放棄不做。\n信仰/喜歡：心靈的寄託與力量，將神明的指引當作「參考」與「方向」，而非絕對的指令。\n算命的心態：算命其實是一種**「探索自我」的過程，滿足對未來的好奇心。就算3個算命師都說男友不好，你很愛還是會在一起，這證明命運還是掌握在自己手裡（願意承擔後果）**。\n特定信仰觀點：遇到迷惘時會拜地藏王菩薩，因為祂管「冤親債主」與智慧。主角認為因果輪迴是本來就存在的事實，相信這個不算迷信，而是為了讓事情更順利。",shoot_req:"",copywriting:"同事都說我是「宗教狂熱份子」😅\n\n但我認為迷信和信仰差很大！\n\n❌ 迷信：算命說不行就不做，喪失判斷力\n✅ 信仰：把它當心靈寄託，在迷失時找方向\n\n算命不是盲目聽從，\n最終決定權永遠在自己手上！\n\n#信仰 #迷信 #算命 #心靈寄託",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0018",video_id:"",project_id:"V-C027-01",category:"日常",sub_category:"景點地區",title:"嘉義哪裡好拍？",summary:"結合在地網美景點推薦，順便帶入「適合該場景」的髮型建議。",outline:"起：(景點破題) \n來嘉義不要只知道吃雞肉飯！推薦 2026 年必去的 2 個好拍景點，髮型都幫你想好了。\n\n承：(景點與髮型搭配)（可以找圖片跟髮型圖片）\n嘉義市立美術館：復古湖水綠窗框，搭配「溫柔波浪捲」\n佐登妮絲城堡：歐式建築風大，搭配「法式低馬尾」或「貝雷帽」，風吹也不亂。\n\n轉：(專業建議) \n去美術館要優雅，捲度要有光澤\n去城堡風大，重點是把頭髮收乾淨才不會變蕭婆\n\n合：(呼籲留言) \n你最想去哪一個拍？留言告訴我！",key_points:"嘉義馬桶 https://share.google/AdSWW5M7EGQkdhm0k\n佐登妮絲城堡/蓋婭莊園",shoot_req:"",copywriting:"來嘉義不要只知道吃雞肉飯啦！\n\n景點都幫你們準備好了！快來採點！\n\n#嘉義髮廊 #嘉義景點",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0019",video_id:"",project_id:"V-C027-01",category:"日常",sub_category:"消費文化",title:"你是雞肉絲派？還是雞肉片派？",summary:"嘉義美食大戰，輕鬆話題拉近距離。",outline:"起：(美食戰爭) \n這是一個嚴肅的問題，可能會引發嘉義內戰！\n\n承：(對比畫面) \n問店內設計師：吃火雞肉飯，你到底是哪一派？\n\n轉：(個人偏好) \n一位設計師：「雞肉片」就像剪髮要有層次感，\n「雞肉絲」就像染髮要融合。我都愛\n\n合：(呼籲留言) \n你是絲派還是片派？底下開放吵架（誤）！",key_points:"",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0022",video_id:"",project_id:"",category:"觀念",sub_category:"頭髮",title:"梳頭也有大學問？『倒著梳』讓頭頂蓬鬆？",summary:"這樣可以把髮根立起來，適合細軟髮的人出門前做。",outline:"起：(扁塌救星) \n嘉義騎機車的朋友注意！\n安全帽拿下來頭頂扁塌塌怎麼辦？一把梳子來救\n\n承：(動作示範) \n一般人是從頭頂往下梳（越梳越貼\n秘訣： 低頭，從後腦勺往額頭方向「倒著梳」，梳順後再抬頭甩一下。\n\n轉：(效果展示) \n這樣可以把髮根逆向立起來，不用噴定型液也很蓬鬆！\n\n合：(呼籲留言) \n明天早上出門試試看，成功回來告訴我！",key_points:"",shoot_req:"",copywriting:"",external_link:"",confirmed:false,editor:""},
+    {script_id:"A0024",video_id:"V-C015-01-V001",project_id:"V-C015-01",category:"觀念",sub_category:"燙髮",title:"捲度維持神技巧",summary:"韓系燙髮後，用最省錢、最低預算的方式，維持捲度彈性與持久度。",outline:"起：(整理迷思)\n燙完頭髮，是不是三天就一定會塌掉？\n\n承：(事實呈現)\n殘酷真相：很多捲度不是燙壞，\n而是洗完頭「用力搓」，直接把捲度破壞掉。\n\n轉：(真正關鍵)\n捲度能不能撐，關鍵不在產品多貴，\n而是「洗後用拍的」＋「正確手繞吹」。\n\n合：(呼籲留言)\n你燙完頭髮，最常在哪一步失手？",key_points:"",shoot_req:"需要一位捲髮模特兒，可現場示範手繞捲",copywriting:"先別怪設計師燙不捲！ \n除了髮質本身，90% 的人捲度消失的原因是.......\n\n維持燙後漂亮捲度就教給你啦！\n\n#中壢髮廊 #桃園美髮 #女生髮型 #燙髮推建 #捲髮",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0027-01",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"染髮",title:"漂髮族省錢神技！",summary:"漂過的頭髮不需要一直花錢補染！影片直擊美髮師的隱藏技巧：如何靠「補色洗髮精」在紅銅流行色與高級霧感色之間自由切換，省錢、快速又不傷髮質。",outline:"起：(視覺衝擊)\n你又染頭髮？不是才剛染?\n\n承：(乾貨教學)\n想換現在最紅的「紅銅色」，怕退色變稻草？\n教你不用直接用補色劑乾髮時先塗抹均勻\n\n轉：(價值翻倍)\n紅銅色看膩了？只要換用「去黃洗髮精」。\n它能把殘留色素矯視掉，頭髮瞬間變回「高級霧感奶茶色」\n\n合：(呼籲互動)\n漂一次頭，享受兩種顏色，這招省錢密技學會了嗎？",key_points:"顛覆認知：\n飽和髮色不一定要用染膏「彩染補色劑」就能做到。\n\n關鍵手法：\n想要顏色像染的一樣飽和？秘訣是「乾髮時直接塗抹」再洗頭。\n\n買一送一：\n紅色膩了，換用「去黃紫正」，立刻褪回乾淨的霧感奶茶色\n（一漂兩玩）。",shoot_req:"需要色卡本",copywriting:"漂候補色的方法不只一個！除了加水起泡泡，還有我教你讓顏色更飽和的方法！\n\n#中壢髮廊 #桃園美髮 #漂髮推薦 #補色劑",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0034",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"燙髮",title:"扁塌髮救星還是毀髮殺手？",summary:"朋友極力勸退「千萬別燙髮根燙」，因為會留下尷尬壓痕且觸感奇怪。設計師介入破解迷思",outline:"起：(視覺衝擊 - 勸退現場)\n你要燙髮根燙？你要確定耶！你看我這個！就是玉米鬚阿\n\n承：(專業破解 - 為什麼會失敗)\n真正的髮根燙，是要做支撐，不會有那種\n\n轉：(技術展示 - 正確手法)\n我們重點在調整角度讓髮根站起來\n\n合：(成果與呼籲)\n扁塌髮想要高顱頂又怕踩雷？\n快來找我不踩雷！",key_points:"直擊痛點：\n展示失敗的髮根燙會有「壓線」、「斷層」、「摸起來卡卡」的問題。\n\n專業破解：\n失敗是因為**「角度太死」或「藥水太重」**。真正的技術是針對髮質調配藥水，創造自然的C字支撐。\n\n懶人救星：\n正確的髮根燙洗完頭**「只要吹乾」**就蓬鬆，完全不需整理，也沒有奇怪的痕跡",shoot_req:"捲子\n失敗的圖片",copywriting:"不是所有髮根燙都叫髮根燙！(你是不是有點疑惑?)\n\n設計師揭露髮根燙的 3 個關鍵要素，\n技術、藥水、判斷  缺一不可！\n\n這可以決定你的髮根最後是蓬鬆還是....\n\n\n#中壢髮廊 #桃園美髮 #蓬鬆 #髮根燙 #高爐頂",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0035",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"燙髮",title:"揭秘美髮黑科技：用離子夾護髮?！更亮、更持久",summary:"打破「離子夾=傷髮質」的迷思！介紹最新的「髮質鍍膜」技術，利用低溫加熱將保養品導入毛鱗片。",outline:"起：(視覺衝擊 - 誤會現場)\n朋友：「你瘋了嗎？才剛燙完頭髮，現在又拿離子夾高溫燙它？」\n\n承：(專業破解 - 原理揭密)\n這是頭髮鍍膜我們用低溫控制的離子夾，把保養成分『導入』毛鱗片並鎖起來\n\n轉：(價值對比 - 為什麼要花錢做)\n可以回家自己燙?千萬母湯\n一般護髮洗兩次就沒了，這個鍍膜可以維持2-3個月\n\n合：(成果展示與呼籲)\n這個光澤！早上整理只要3分鐘",key_points:"顛覆認知：看到離子夾別害怕，這是**「低溫導入」**技術，不是為了把頭髮夾直，而是為了把營養鎖住。\n\n區隔市場：一般的「結構式護髮」是補強內部彈性；「髮質鍍膜」則是專攻外部光澤與柔順度，像鏡面一樣亮。\n\n高CP值：一般護髮洗幾次就沒了，鍍膜可以維持2-3個月，且縮短早上整理時間（15分鐘變3分鐘）。\n\n勸退DIY：解釋為何不能自己在家做（溫度控制、力道、分區厚薄度），強調專業價值。",shoot_req:"鍍膜用具",copywriting:"美髮黑科技? 沒有拉 其實就是鍍膜護髮，如果你也想要快速的護髮還有很持久的好好髮質，鍍膜護髮可以做到喔！\n\n#中壢髮廊 #桃園美髮 #頭髮鍍膜 #護髮推薦 #離子夾",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0036",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"剪髮",title:"大臉只能靠頭髮遮？",summary:"打破「圓臉/大臉一定要留長髮遮蓋」的迷思。透過真實案例分析，揭露為什麼「一字剪」會讓你像路人甲，而「高層次」剪裁（如狼尾頭）透過增加頭頂蓬鬆度，反而能拉長臉型，達到真正的視覺小臉效果。",outline:"起：(視覺衝擊 - 路人變主角)\n(畫面：拿出客人以前的長直髮/一字剪照片 vs 現在的高層次帥照)\n這是你？根本是路人甲\n\n承：(專業分析 - 為什麼越遮臉越大)\n臉頰遮住，但頭頂（頂部區）是塌的，視覺重心橫向發展\n\n轉：(解決方案 - 顱頂增高術)\n想要小臉，重點是**『高層次』頭頂剪蓬、拉高顱頂，臉型瞬間就被拉長修飾了\n\n合：(呼籲互動)\n想知道你的臉型適合什麼層次？",key_points:"迷思破解：頭髮遮在臉頰旁，如果頭頂是塌的，臉看起來會更寬、更圓。\n關鍵技術：**「高層次剪裁」**能讓頂部區蓬鬆（增高顱頂），視覺焦點上移，臉型自然拉長變小。\n整體設計：髮型不能只看臉，還要看**「穿搭風格」**。中性/個性穿搭配上俐落層次，比死板的長直髮更有星味。",shoot_req:"以前的照片",copywriting:"髮型可以改變一個人的臉形視覺！不要再蓋東蓋西了，我們幫你把特色放大！\n\n#中壢髮廊 #桃園美髮 #修飾臉型 #女生髮型",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0037",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"染髮",title:"白髮共存染髮術！越長越自然！",summary:"別再為了遮蓋白髮把整頭染成死氣沈沈的黑色了！\n\n利用歐美流行的**「光線染/挑染」**技術，讓白髮變成設計的一部分",outline:"起：(視覺衝擊 - 抱怨現場)\n白髮又冒出來，每個月都要補染，心好累荷包又痛\n\n承：(觀念翻轉 - 白髮共存)\n『光線染』或『挑染』，讓白髮混在淺色線條裡。\n\n轉：(視覺證據 - 效果展示)\n深淺交錯的線條，白髮長出來會跟挑染混在一起\n\n合：(利益總結與呼籲)\n想體驗「白髮共存」？",key_points:"痛點直擊：染深色雖然蓋得住，但白髮一長出來就會形成「黑白斷層」，超級明顯，導致每個月都要跑髮廊。\n觀念翻轉：「白髮共存」不是不染，而是把底色調淺或做「挑染/光線染」，模糊白髮的界線。\n高CP值：原本1個月要補染一次，現在可以撐3-6個月，白髮長出來反而像挑染線條，越長越自然。\n視覺減齡：相比沈重的黑色，帶有線條感的淺色調讓人看起來更有精神、更年輕。",shoot_req:"",copywriting:"「我不想每個月都為了白髮奔波染髮！」\n很多人都希望可以根白髮共同生存，我們能幫妳做到\n運用光線染、線條染的方式，讓你跟白髮一起閃耀！\n\n\n#中壢髮廊 #白髮 #染髮推薦",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0038",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"燙髮",title:"燙髮潛規則",summary:"很多客人以為「懶人燙」就是「睡醒不用動」，結果燙完變鳥窩。影片將無情揭露燙髮真相：為什麼一定要護髮",outline:"起：(衝擊與衝突)\n懶人燙是指『好整理』，不是『不用整理』\n\n承：(觀念教育 - 為什麼要護髮)\n叫我買護髮？是不是想騙錢?\n\n轉：(高價值乾貨 - 時間與省錢)\n染燙一起做? 一定要先燙再染，而且最好隔兩週。\n\n合：(總結與呼籲)\n想知道你的髮質適合哪種懶人燙？",key_points:"破解迷思：「懶人燙髮」不等於「完全不整理」，而是簡化整理（順著髮流吹乾），否則一樣會毛躁。\n科學解釋：為什麼一定要護髮？因為燙髮流失蛋白質，沒有蛋白質＝沒有彈性＝捲度消失。護髮是為了讓捲度活下去，不是智商稅。\n流程關鍵：想染又想燙？**「先燙再染」**是鐵律，且建議分開2-3週，否則顏色會被藥水吃掉變黃，還會坐到屁股爛掉（7-8小時）。\n省錢撇步：燙染專用洗髮精不用洗一輩子！**「前3週到一個月」**關鍵期洗就好，之後換回喜歡的洗髮精，既省錢又有效。",shoot_req:"",copywriting:"決定妳髮質死活的潛規則，在燙染之前就開始了！\n而燙染之後更需要注意髮質狀況，這決定了未來你想換髮型或髮色時候的品質喔！\n\n#中壢髮廊 #女生髮型 #燙髮 #染髮 #頭髮保養",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0039",video_id:"",project_id:"V-C015-01",category:"技術",sub_category:"髮型",title:"6分鐘復活！扁塌變韓系",summary:"細軟髮的痛誰懂？晚上吹乾隔天起床變直髮？影片直擊設計師上班前的「極限挑戰」：如何在客人進門前的短短6分鐘內，將扁塌的直髮，透過簡單的「噴水、抹慕斯、烘罩」，瞬間復活成彈性十足的捲髮。",outline:"起：(視覺衝擊 - 極限挑戰)\n6分鐘夠了！看我表演細軟髮復活術！」\n\n承：(關鍵步驟 - 濕髮與打底)\n快速噴水，頭髮變濕，接著抹護髮和慕斯\n\n轉：(技術展示 - 烘罩神技)\n烘罩低溫低風，把捲度『推』回去\n\n合：(成果與呼籲)\n搞定！細軟髮也能有蓬鬆大捲！\n還想看我挑戰幾分鐘出門？底下留言給我！",key_points:"痛點共鳴：細軟髮燙完捲度很難維持，睡醒就像沒燙過一樣（看起來像直髮）。\n關鍵步驟：不是直接吹，而是**「噴水喚醒」** -> 「結構式護髮打底」 -> 「軟慕斯定型」。\n產品選擇：強調使用**「軟慕斯」**，不會讓頭髮變硬塊，保有自然蓬鬆感。\n烘髮技巧：不必整頭亂烘，只需配合烘罩「由下往上推」，熱度進去捲度就出來了。",shoot_req:"",copywriting:"6分鐘夠嗎？看我表演！\n噴水 → 抹慕斯 → 烘罩低溫\n就三步，扁塌亂瞬間復活蓬鬆捲！\n\n細軟髮也能有造型，重點是技術不是天生。\n\n你家裡的烘罩都怎麼用？\n留言告訴我，下次挑戰4分鐘\n\n#中壢髮廊 #女生髮型 #捲髮整理",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0040",video_id:"",project_id:"V-C015-01",category:"觀念",sub_category:"剪髮",title:"手指頭決定你的瀏海命運",summary:"剪瀏海不是為了「遮醜」，而是為了「凸顯優點」。影片透過簡單的**「手指測量法」**（3指低額頭 vs. 5指高額頭），結合臉型分析（菱形、圓臉），教你找出最修飾的瀏海長度。",outline:"起：(互動鉤子 - 手指測量)\n伸出你的手，量一下你的額頭\n\n承：(痛點分析 - 窄額頭與菱形臉)\n3指窄額頭千萬別剪眉上短瀏海\n\n轉：(觀念翻轉 - 高額頭優勢)\n5指高額頭與其厚重遮蓋變路人，不如剪眉上短瀏海\n\n合：(行動呼籲)\n現在自拍一張傳給我，我幫你線上診斷！",key_points:"互動鉤子：「手指測量法」。請觀眾現在伸手量額頭，3指（窄額頭）vs. 5指（高額頭），結果決定命運。\n避雷指南：\n窄額頭 (3指)：千萬別剪太短的眉上瀏海，會像「櫻桃小丸子」一樣呆版；適合旁分或微中分。\n菱形臉：顴骨高的人，需要**「S型瀏海」**修飾臉頰凹陷。\n圓臉：重點在**「髮根蓬鬆度」**，拉長臉型。\n觀念翻轉：高額頭 (5指) 其實是天菜！不要只會死板遮住。若五官立體，剪**「眉上短瀏海」**反而更能凸顯眼神，從路人變精靈",shoot_req:"",copywriting:"伸出你的手，量一下額頭👉\n3指？別剪眉上短瀏海，只會顯臉短\n5指？與其厚重遮蓋，不如剪短瀏海凸高級感\n\n菱形臉、圓臉...每張臉都有它的黃金瀏海。\n\n現在自拍一張傳給我，我幫你線上診斷！\n\n#中壢髮廊 #女生髮型 #瀏海",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0041",video_id:"",project_id:"V-C015-01",category:"技術",sub_category:"燙髮",title:"揭秘韓系大波浪的「混合燙髮術」",summary:"自然、像沒燙過、好整理」的捲髮，卻在冷燙與熱燙之間糾結。影片揭露專業設計師的隱藏菜單：利用**「冷燙燙髮根」（輕盈蓬鬆）結合「熱燙燙髮尾」（立體波浪），解決熱燙太重壓垮頭頂、冷燙髮尾毛躁的痛點。並強調維持捲度的關鍵不是燙多捲，而是「護髮",outline:"起：(奧客需求 vs. 選擇障礙)\n我要『看起來沒燙過』、超自然、起床不用整理的捲髮\n\n承：(專業分析 - 優缺點大公開)\n冷燙捲子輕，能救你的扁塌髮根，但髮尾容易毛躁。\n\n轉：(獨家技術 - 混合燙髮術)\n小孩才做選擇！我們用混合燙\n\n合：(真相爆擊 - 關於持久度)\n哪一種可以維持比較久？重點不是哪種燙，是護髮",key_points:"痛點解析：\n冷燙：捲子輕，能燙到髮根（蓬鬆），但髮尾容易毛躁，像泡麵。\n熱燙：紋路深、立體好整理，但捲子重、溫度高，燙不到髮根，頭頂容易扁塌。\n專業解法（混合燙）：髮根用冷燙撐起蓬度（高顱頂），髮尾用熱燙做出韓系大波浪。截長補短，一次擁有蓬鬆與光澤。\n觀念教育：想要捲度維持久一點？不是燙越捲越好，而是要**「做護髮」**。頭髮有彈性（蛋白質），捲度才撐得住，否則只是乾枯的稻草。",shoot_req:"",copywriting:"明明想要韓系大波浪，卻總是在冷燙與熱燙之間選擇障礙？\n冷燙救了髮根卻毀了髮尾？熱燙捲度美卻壓扁頭頂？\n\n我們用「混合燙髮術」來幫你解決！\n✨ 髮根用冷燙： 打造空氣感，輕盈蓬鬆不扁塌。\n✨ 髮尾用熱燙： 塑造立體波浪，告別毛躁感。",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0042",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"品牌",title:"創業一定要自己幹？我在「老品牌」看見的真相",summary:"別再覺得老品牌就是老土、沒自由！一位在曼都待了18年的設計師現身說法：為什麼在年輕人瘋狂「獨立創業」的時代，她選擇留在大公司？影片揭露「大品牌資源」如何讓她18歲當設計師、21歲開店、現在擁有4家店。這不是被綁住，而是有人罩！",outline:"起：(衝擊提問 - 為什麼待在老店)\n30幾歲，幹嘛待在曼都這種『老人家』去的公司？年輕人不是都要自己出去闖嗎？\n\n承：(價值展示 - 資源與成就)\n覺得大公司綁手綁腳，錯！那是有人罩你！\n\n轉：(觀點輸出 - 自由 vs. 賺錢)\n小公司很自由沒錯，但自由能當飯吃嗎？\n大公司有SOP、有制度，讓你少走彎路可以『擴大』舒適圈\n\n合：(感性號召)\n老品牌底蘊深，加上我們年輕人的創意，這才是最強的組合。\n想創業又怕沒資源？進來曼都，姐罩你！",key_points:"打破迷思：年輕人覺得大公司制度僵化？真相是：制度＝SOP＝能複製成功。小公司看似自由，但沒人督促、沒系統，往往賺不到錢也學不到東西。\n資源優勢：想開店沒資金？大公司有內部創業機制。想學管理？公司有培訓讓你25歲當上傑出店長。這些是單打獨鬥很難拿到的資源。\n舒適圈新解：不必「跳出」舒適圈，而是在大公司的保護傘下**「擴大」舒適圈**。從一家店變四家店，既有安全感又能發揮野心。\n品牌演變：老品牌也在進化（會議時間調整、副品牌年輕化），現在進場正好能結合年輕創意與深厚底蘊，創造新火花。",shoot_req:"",copywriting:"在美髮業18年，我成立了5間公司，靠的不是硬著頭皮拚，是那份文化和系統支持著我的！\n\n#桃園髮廊 #創業 #職場關係 #品牌",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0043",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"創業職場",title:"先成家還是先立業？這才是真心話",summary:"面臨人生岔路，到底該先衝事業還是先生小孩？影片提供一個超犀利的觀點：「先當主管」。因為帶員工跟帶小孩是一樣的邏輯！",outline:"起：(犀利提問 - 人生順序)\n先成家還是先例業?先當主管啊\n\n承：(神比喻 - 員工=小孩)\n下屬跟小孩簡直一模一樣！當主管要『帶人帶心』，要摸透每個人的個性、毛病。這不就是育兒先修班嗎？\n\n轉：(硬核手段 - 催眠教育)\n我兒子剛出生，我就開始催眠他\n只有愛沒有原則，你就是被欺負的媽媽。\n教會他們遇到問題去解決，而不是用哭來勒索你。\n\n合：(金句總結與呼籲)\n想學如何用「主管思維」把小孩（或男友）管得服服貼貼？",key_points:"獨特觀點：為什麼要先當主管？因為**「員工就跟小孩一樣」**（甚至更難搞）。先學會帶人帶心、處理各種巨嬰毛病，生小孩後你就是育兒大師。\n實戰技巧：「出生即催眠」。別聽老人家說嬰兒聽不懂，從出生第一天就開始對他說教（建立原則），真的有效。\n核心價值：「愛 + 原則」。只有愛沒有原則，你就是被欺負的媽媽（或主管）。要教孩子/員工的是「解決問題」，而不是在那邊哭。",shoot_req:"",copywriting:"如果有人問到我要成家還是先立業?  我會反問你：「你當過主管了沒？」\n\n#桃園髮廊 #創業 #育兒 #職場關係 #人際關係",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0044",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"個人成長",title:"那天我在急診室崩潰",summary:"外表光鮮亮麗、手握5間店的女老闆，私底下其實長期壓抑情緒，直到一次員工送急診的意外，誘發了深藏的PTSD（創傷症候群），在醫院崩潰嘔吐。",outline:"起：(視覺反差 - 笑臉背後的崩潰)\n你開了5間店，每天看起來都好快樂\n\n承：(故事爆點 - PTSD發作)\n那天員工送急診，救護車的聲音直接觸發我的創傷症候群\n\n轉：(關鍵轉折 - 示弱的力量)\n我以為老闆就要像超人一樣全包，結果那天，是我的員工接手了一切。\n一直正面不是好事，接受自己的脆弱，你的夥伴才有機會長大。\n\n合：(價值昇華與呼籲)\n你也總是習慣一個人扛下所有嗎？",key_points:"戳破假象：總是笑臉迎人的老闆，其實只是習慣把悲傷縮小、快樂放大，這是一種**「不健康的壓抑」**。\n真實故事：透過急診室的具體細節（聽到救護車聲手抓到破皮、噁心嘔吐），具象化PTSD的痛苦，引發觀眾憐憫與共鳴。\n領導力轉念：真正的成熟不是「不哭不鬧、自己扛」，而是**「接受別人的照顧」**。\n團隊賦能：老闆願意**「示弱」，員工才有機會「變強」**。適時的放手，是為了讓夥伴補位，這才是健康的團隊關係",shoot_req:"",copywriting:"作為老闆，我一直以為自己該是超人。\n\n直到創傷症候群在急診室爆發。\n直到我在大庭廣眾面前崩潰、嘔吐。\n直到員工站出來，接手了我認為我應該要全包的一切。\n\n那一刻，我才明白：\n示弱不是失敗，是給別人成長的機會，也是給我自己機會。\n\n假裝沒事，誰都累。\n接受自己的脆弱，才能真正帶隊。\n\n你也在假裝沒事嗎？\n\n\n#桃園髮廊 #創業 #創傷 #個人成長",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0045",video_id:"",project_id:"V-C001-03",category:"日常",sub_category:"信仰",title:"2026馬年運勢神準預測！憑直覺選一張牌",summary:"迎接2026馬年，你準備好了嗎？透過四張神秘牌卡，快速解析你明年的關鍵字。是需要「流動」改變？還是要把「健康」顧好才有錢？又或者是「夏天」會有大轉機？",outline:"起：(黃金3秒 - 互動鉤子)\n想著2026年，憑直覺選一張牌！3、2、1，選好了嗎？ 我們來看宇宙給你的馬年指引！\n\n承：(快速解牌 - 選項1 & 2)\n選1的朋友【流動】：別再固執了！明年關鍵是『變』。人際、思想要流動，接受新資訊，財運才會進來。\n選2的朋友【健康】：這張牌警告你，別再熬夜暴飲暴食！明年你的『健康』直接等於『財富』，顧好身體才有錢賺。\n\n轉：(關鍵轉折 - 選項3 & 4)\n選3的朋友【夏天】：恭喜！你的好運在年中。現在開始佈局，『夏天』會有大好消息或創業良機！\n選4的朋友【綻放】：注意看，牌原本是反的(卡住)。代表你只要『消除雜念、堅持到底』，不要三心二意，成果就會完美綻放。\n\n合：(趣味收尾與呼籲)\n如果不準怎麼辦？那2027年再來找我算帳！\n你選到幾號？底下留言「領取好運」，讓2026旺整年！",key_points:"強互動機制：開頭直接讓觀眾「3秒選牌」，強迫觀眾參與，大幅提升停留時間。\n牌義精準轉譯：\n1號牌 (流動)：別死腦筋，人際、思想都要變通，「變」就是財。\n2號牌 (健康)：身體是革命本錢，熬夜是大忌，健康=財富。\n3號牌 (夏天)：上半年佈局，**年中(夏天)**會迎來大爆發/好消息。\n4號牌 (綻放)：關鍵在**「堅持」**。原本牌是反的(卡住)，只要心無雜念堅持做，就能正位綻放。\n免責聲明(幽默感)：如果不準我不負責，2027年再來找我。增加親切感。",shoot_req:"塔羅牌",copywriting:"準備要過農曆新年了！有看到我這支影片的人你真的賺到了，第一次幫大家大眾占卜，快來領好運！\n\n#桃園髮廊 #馬年行大運 #大眾占卜 #塔羅牌",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0046",video_id:"",project_id:"V-C001-03",category:"日常",sub_category:"穿搭",title:"挑戰「見家長神穿搭」！英倫千金?採茶大媽？結局太反轉！",summary:"時尚設計師接受極限挑戰，要在10分鐘內用一堆「死亡亮色系」衣服，搭配出「見家長」與「春遊」兩套造型。結果第一套「英倫學院風」備受好評，第二套卻畫風突變成了「頭巾採茶姑娘」？設計師還振振有詞說是為了讓長輩看得到？",outline:"起：(極限挑戰設定)\n挑戰用這堆『死亡亮色衣』搭出兩套衣服：一套見家長、一套春遊！\n\n承：(第一套 - 乖巧媳婦風)\n第一套『英倫學院風』這媳婦有品味\n\n轉：(第二套 - 畫風突變)\n第二套『春遊採草莓裝』這是採茶大媽吧？\n\n合：(爆笑收尾與呼籲)\n「實用型」媳婦穿搭，如果你是婆婆給幾分？\n底下留言告訴我，你敢這樣穿出門嗎？",key_points:"極限挑戰：設定10分鐘與難搭亮色衣物，增加緊張感與期待值。\n穿搭心機：\n見家長：主打**「英倫學院風」**，剛畢業的乖巧感，讓公婆覺得你是有氣質的好媳婦。\n春遊：主打**「高飽和度（亮橘色）」**，歪理卻很有道理——「這樣長輩才看得到你」、「防止走失」。\n視覺爆點：第二套的**「阿嬤頭巾」**是整支影片的高潮，從時尚變採茶女，絕對能騙到留言互動。",shoot_req:"各種不同類型的衣物",copywriting:"第一次穿搭PK賽\n見家長 vs. 春遊\n英倫學院風 vs. 採茶小姐姐風\n你們選哪個?\n\n#桃園髮廊 #過年 #穿搭",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0047",video_id:"",project_id:"V-C001-03",category:"日常",sub_category:"穿搭",title:"女生必學的「體重詐欺術",summary:"大公開梨形身材、有小腹女生的生存法則：如何利用皺褶、高腰、長版單品，把肉藏起來，只露出最瘦的腰線和腿。這不是減肥，是視覺魔術。",outline:"起：(視覺衝擊 - 猜體重)\n你看起來身材超好耶\n\n承：(痛點揭露 - 哪裡胖)\n我肚子超大，生過小孩骨盆又寬。\n\n轉：(穿搭乾貨 - 遮肉三招)\n第一，下半身要買有皺褶的\n第二，露腰不露臍\n第三，遮骨盆\n\n合：(購物哲學與呼籲)\n最後一招，衣服買便宜的沒關係，但帽子、包包要買好的，質感直接升級！",key_points:"數據反差：真實體重57kg vs 視覺體重43kg，強烈的數字對比證明穿搭有效。\n遮肉心機 (針對小腹/骨盆寬)：\n下身選「皺褶款」：不要穿全素平面的，皺褶/線條能模糊視覺，讓凸出的小腹隱形。\n高腰露腰不露臍：腰通常是最細的，把褲頭拉高遮住肚臍（小腹區），只露出上腹（胃部）最瘦那一段。\n長版遮假胯寬：利用長版上衣或外套蓋住最寬的骨盆，搭配短褲露腿，轉移視覺焦點。\n購物哲學：衣服買便宜的（兩三百塊）隨潮流換也不心疼；配件（帽子、鞋、包）買好的，提升整體質感且不退流行。",shoot_req:"各種不同類型的衣物",copywriting:"梨形身材、小腹、骨盆寬...\n皺褶布料藏肉 → 露腰不露臍秀線條 → 遮骨盆顯腿長\n\n這樣穿真的差很大！\n\n最後一招：衣服買便宜沒關係，但配件帽子和包包一定要投資。\n\n質感會幫你『騙過』所有人的眼睛ㄛ",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0048",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"職場",title:"美髮圈的狼性文化? 歡迎挑戰我",summary:"你敢當面說老闆「機車」嗎？敢說夢想是「取代老闆」嗎？這支影片帶你看見最真實的00後美髮職場！",outline:"起：(視覺衝擊 - 員工吐槽)\n在你心中我是怎樣的老闆？說實話 (問員工)\n\n承：(價值澄清 - 嚴格但公平)\n對事不對人，做錯就被罵，做對也會被誇獎。罵完就沒事了\n\n轉：(劇情高潮 - 想要幹掉你)\n休假員工跑回來練人頭\n員工(眼神堅定)：「因為我想幹掉老闆！我要成為你，然後使喚你！」\n如果能培養出一個幹掉我的人，那代表我也成功了。\n\n合：(格局昇華與呼籲)\n歡迎來挑戰我！",key_points:"真實互懟：員工直言老闆個性「機車」，但補充是**「對事不對人」**。這傳遞了職場的高標準與公正性。\n狼性企圖心：員工休假回來練人頭，毫不避諱說目標是**「幹掉（取代）老闆」**。這展現了強烈的上進心。\n老闆格局：面對員工的挑戰，老闆的觀點是**「如果你能幹掉我，代表我成功了」**。這句話極具領導魅力，能吸引想成長的人才。\n反差萌：嚴肅的工作標準 vs 私下像朋友一樣打鬧（甚至員工戴貓耳頭套），展現良好的團隊氛圍。",shoot_req:"",copywriting:"你的老闆敢讓員工說他『機車』嗎？\n我敢。\n而且我還敢聽員工說：『我想幹掉你，成為你。』\n\n這不是威脅，是『野心』。我舉雙手歡迎！\n\n最牛的領導不是『讓人怕你』，而我想『培養出想超越我的人』。\n\n如果我的員工都想幹掉我，那我就成功了。\n你也想來試試嗎？\n\"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0049",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"創業職場",title:"我全家都有病",summary:"設計師自爆全家都有「壓抑病」，唯獨她是個「快樂的神經病」。原來關鍵在於18歲那年，她被主管逼到崩潰，直接飆出「三字經」。",outline:"起：(震撼開場 - 全家都有病)\n我們全家都有病！ 只有我是個快樂的神經病\n\n承：(衝突爆發 - 飆罵主管)\n我18歲當助理時，有次主管一直逼問我不爽什麼。我飆髒話：『Ｘ你媽有毛病是不是？聽不懂人話嗎？\n\n轉：(溫暖反轉 - 情緒被接住)\n他竟然大笑說：『妳終於說出來了！』\n情緒沒有對錯，重點是有沒有人能接住你。\n我也在努力成為那個能接住夥伴情緒的大人。\n\n合：(價值昇華 - 成為那個人)\n你心裡也有說不出口的委屈嗎？\n底下留言，這裡讓我接住你！",key_points:"驚悚開頭：「我們全家都有病」。用強烈的負面詞彙吸引注意力，再帶出這是現代通病（睡不好、壓抑、憂鬱）。\n故事爆點：18歲菜鳥敢對主管飆國罵（Ｘ你媽有毛病是不是？）。這違反職場常規的行為，會讓觀眾好奇「下場如何」。\n反轉結局：主管沒有開除她，而是**「接住她的情緒」**。這個反差展現了主管的高度，也解釋了為什麼主角能留在這行18年。\n核心金句：「人一定要能包容自己的喜怒哀樂」。長大後，我們要成為那個能「接住別人情緒」的大人，這才是真正的成熟。",shoot_req:"",copywriting:"我常笑說我們全家都有病，只有我是個快樂的神經病。\n這份快樂，其實是被一位主管逼出來的。\n\n那年，我對著主管飆出髒話的那一刻，\n打破了我心裡那道「不敢表達」的高牆。\n(我沒有常常罵他髒話拉)\n\n他接住了我的崩潰，讓我學會了真實。\n\n在髮廊這個高壓環境，我們常為了專業形象武裝自己。\n但我更希望，我的團隊、我的客人，在我面前都能自在地卸下武裝。\n\n我也在努力，成為溫柔接住你情緒的大人。",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0050",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"創業職場",title:"夫妻創業必離婚？「這4個字」是生存關鍵！",summary:"人家說夫妻同心，其利斷金，但更多的是「夫妻開店，吵到翻臉」。影片直擊這對美髮界神鵰俠侶，如何打破魔咒？原來秘訣不是不吵架，而是「分店管理」與「財政大權在握」。",outline:"起：(破題 - 夫妻創業魔咒)\n我要訪問我老公：人家都說夫妻不要一起工作，會離婚。我們怎麼還沒離？\n\n承：(生存法則 - 分區管理)\n秘訣就是劃分地盤他管恆星店，我管埔心店\n\n轉：(獨特相處 - 工作狂模式)\n回家只聊工作！如果不聊工作，我們可能早就沒話講了\n老婆：「我是管錢的，他是管...」老公：「管小孩的。」\n\n合：(金句爆擊)\n老婆：「最後給想夫妻創業的人一句忠告？」\n老公（看鏡頭，堅定）：「聽老婆的！」\n老婆：「沒錯！聽老婆的就會成功！」",key_points:"分治天下：夫妻不要窩在同一家店！「一人管一家」（老公管核心店、老婆管普信店），互不干涉管理風格，減少摩擦。\n共同語言：誰說回家不能談工作？這對夫妻是**「工作狂組合」**，回家不聊工作反而會離婚！工作就是他們的戀愛語言。\n職責明確：老婆管錢（財政大權）、老公管小孩（苦力擔當）。\n終極心法：想創業成功？老公唯一的忠告就是：「聽老婆的！」",shoot_req:"",copywriting:"人家都說夫妻不要一起工作，會感情不好。\n但我們沒有這個問題，因為我們... 分、開、管！\n\n摩擦一定會有，但我們有相處的平衡點！\n1.分區管理，各自為王\n2.有共同目標 (有人說是公私不分)\n但我們就是工作狂阿！回家聊工作，對我們來說就是生活和最大的共同話題。\n\n只要找到相處的平衡點，夫妻一起做什麼都可以！",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0051",video_id:"",project_id:"V-C001-03",category:"觀念",sub_category:"消費文化",title:"捨得買SABON沐浴油，卻用廉價洗髮精？",summary:"針對「重臉部/身體保養，輕頭皮保養」族群的教育型帶貨影片。透過對比知名品牌（SABON）的消費行為，點出消費者的盲點：頭皮老化速度比臉快，且頭皮也會「缺水」。藉此順勢推出富含儲水能力的「金運蘭花洗護組」，結合過年「大吉大利」的諧音梗，",outline:"起：(價值衝擊 - SABON vs. 廉價洗髮精)\n我買SABON沐浴油，洗完皮膚超嫩\n你捨得花幾千塊刷身體，結果頭皮用超市幾百塊的隨便洗？\n\n承：(觀念教育 - 頭皮就是臉皮)\n你頭皮被頭髮悶住，缺水乾燥就會發炎、掉髮，到時候你身體再嫩，頭禿了能看嗎？\n\n轉：(產品置入 - 蘭花儲水力)\n救星在這！金運蘭花洗護組，專門救你這種『乾妹妹』，把水份鎖在頭皮\n\n合：(吉利話術與呼籲)\n這是限量款！洗了『金運蘭花』，馬年大吉大利，全身都水噹噹！\n不想當乾妹妹？想把好運洗進來？",key_points:"消費心理定錨：既然願意花千元買SABON保養身體，為什麼頭皮（臉部肌膚的延伸）卻只用百元商品？這個對比能瞬間拉高洗髮精的心理預算。\n核心觀念：「頭皮跟臉是同一張皮」。頭皮被三千煩惱絲悶住，比身體更需要抗老跟保濕，頭皮鬆弛，臉也會跟著垂。\n成分賣點：「蘭花」。蘭花是靠強大儲水能力生存的植物，主打「抓水、抗老」，非常適合秋冬乾燥季節與乾性頭皮。\n節慶行銷：配合馬年/過年，推出**「金運蘭花」**，話術包裝成「洗了會發、大吉大利」，增加送禮或自用的誘因。",shoot_req:"",copywriting:"懂保養的人真的會連頭皮和頭髮都顧到欸！這樣才真正是一個精緻的人！蘭花的效果真的好水潤喔！\n\n#桃園髮廊 #保濕 #乾燥 #洗髮精推薦",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0052",video_id:"",project_id:"VC000",category:"觀念",sub_category:"品牌",title:"5種拍影片的人",summary:"5種拍影片會有的狀況，RENATA蕾娜塔髮品推出了協助改善這些狀況的體驗課！想了解的話聯繫業務",outline:"起：(直切)\n拍影片的5種人\n\n承：\n第1種人：緊張一直看稿\n第2種人：平常很會，開拍就不知道說什麼\n第3種人：面對鏡頭直接無法講話\n第4種人：無法停止的笑\n第5種人：一直想講別的事\n\n轉：(體驗課內容)\n\n合：(諮詢方式)",key_points:"",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0053",video_id:"",project_id:"V-C011-02",category:"技術",sub_category:"燙髮",title:"縮毛矯正的正確維護方式",summary:"自然捲長出來頭頂變「方」的、變毛躁怎麼辦？整頭重燙怕髮尾爛掉，不燙又醜？影片揭露縮毛矯正的正確維護方式——「只燙髮根」。",outline:"起：(視覺衝擊 - 勸退現場)\n補燙髮根\n\n承：(技術解密 - 為什麼只燙髮根)\n毛躁的只有長出來的這段自然捲。我們只處理這段新生髮\n髮尾不用承受二次高溫傷害，髮質才會好\n\n轉：(關鍵限制 - 不能太頻繁)\n可以一個月來補一次嗎？\n\n合：(價值總結與呼籲)\n你也受夠了自然捲的過渡期嗎？",key_points:"痛點解決：自然捲長出來會有波紋、變蓬，導致頭型變醜。解決方案不是整頭燙，而是**「補燙新長出來的髮根」**。\n破除迷思：\n傷髮質？ 錯！補燙只針對健康的新生髮，不動髮尾，反而保護了受損的髮尾。\n會有斷層？ 專業的「接順」技術，能讓直髮完美銜接，不會上面扁下面蓬。\n關鍵週期：為什麼不能一個月補一次？因為離子夾溫度高，需要3-4個月（約長3公分），才有足夠的空間讓離子夾操作，否則會燙到頭皮或夾不到。\n價格觀念：補燙費用跟整頭差不多，因為工序流程一樣，但換來的是髮質的健康。",shoot_req:"",copywriting:"每次看到自然捲女孩因為頭頂長出新頭髮變毛躁，就跑來喊著要整頭重燙，我都忍不住直接勸退。\n\n毛躁的只有新長出來的那段，只要精準補燙髮根就好！\n\n這樣髮尾不需要再承受藥水跟高溫傷害！把新長出來的自然捲處理順，髮尾繼續維持，髮質才會越養越好。\n\n#自然捲 #雲林髮廊",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0054",video_id:"",project_id:"V-C011-02",category:"技術",sub_category:"染髮",title:"染髮素顏霜?懶人必選「霧感暖橘」",summary:"素顏出門怕氣色差？還在糾結染什麼顏色顯白？影片揭秘2025年懶人神仙髮色——「霧感暖橘」。不同於冷色調如果不化妝會顯得蒼白沒精神，暖橘色自帶「腮紅特效」，能中和黃皮膚，讓你素顏也像上了妝一樣白裡透紅，而且重點是：完全不用漂！",outline:"起：(懶人需求)\n有沒有那種不用化妝、氣色也很好的顏色？\n一定要選暖色系！\n\n承：(專業推薦)\n最推「霧感暖橘色」\n\n轉：(關鍵優勢)\n需要漂嗎？\n\n合：(呼籲行動)\n你也想找顯白的命定色嗎？底下留言預約！",key_points:"懶人救星：暖色系（霧橘）讓素顏氣色變好，不用化妝也像有上妝。\n顯白原理：暖色調能修飾膚色，讓臉看起來更白晰（像之前的粉棕色一樣）。\n髮質友善：這種高質感的霧面色**「不用漂」**，省錢又不傷髮。",shoot_req:"",copywriting:"素顏也能氣色好？選對髮色皮膚好！\n\n懶人必選：霧感暖橘色\n-自帶腮紅特效\n-不用化妝也顯白\n-完全不用漂\n\n冷色系髮色怕蒼白，暖橘色卻能中和黃皮膚，素顏白裡透紅！\n\n你也想要這個效果嗎？\n留言預約，找到你的命定色！\n\n#髮色推薦 #顯白 #暖橘色",external_link:"",confirmed:true,editor:"峻恩"},
+    {script_id:"A0055",video_id:"",project_id:"V-C011-02",category:"日常",sub_category:"生活文化",title:"揭秘念經正確SOP！",summary:"念經是為了消災解厄，但做錯了可能會有反效果。影片分享真實案例：晚上抄心經竟然導致發燒？原來是因為無形眾生也想要功德。內容教你如何判斷與神明的緣分、念經前必做的「護持儀式」，以及讓功德倍增的正確回向順序。",outline:"起：(禁忌故事)\n我曾因為晚上抄心經，結果直接發燒！\n\n承：(緣分與阻礙)\n念經是為了消災，但如果你覺得念不下去、想睡覺，可能是冤親債主在阻擋\n\n轉：(正確SOP)\n不想被無形搶走功德？念經前一定要做這個動作：請主神護持\n迴向順序要對\n\n合：(呼籲互動)\n念經一定要念對，不然等於白做工！",key_points:"神明緣分：進廟裡看到哪尊神明會「想哭」，代表祂懂你、你跟祂有相應的緣分。\n念經禁忌：盡量避免在晚上念經或抄經，因為無形眾生也想搶功德，若氣場低容易被靠近（案例：晚上抄經後發燒）。\n正確儀式：\n事前：一定要念出「請某某主神來護持我」，避免功德被搶走。\n事後（回向）：順序很重要，先回向給國家/大眾 → 公司/親友 → 最後才是自己，這樣功德反而最多。",shoot_req:"",copywriting:"唸經不能亂唸，\n如果你不想念了半天變成「白做工」，\n這兩個動作一定要記下來：\n\n1. 唸之前：先請主神護持\n（這等於是幫自己開個安全結界，告訴無形眾生請勿打擾！）\n2. 唸之後：迴向順序不能錯\n（功德才能精準發揮力量，不會被隨便劫走）\n\n用對SOP，才不會讓你的用心打折扣！",external_link:"",confirmed:true,editor:"峻恩"},
+    {script_id:"A0056",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"生活文化",title:"總是找不到貴人？如何聽懂宇宙的提醒",summary:"想成功靠父母不如靠貴人，但貴人到底在哪？影片分享一個重要的「宇宙法則」：貴人不一定是身邊的大佬，有時候是透過路人的一句話、或重複出現的訊息來提醒你。學會捕捉這些「重複的訊號」，你也能抓住機會（例如買台積電、中發票）。",outline:"起：(痛點與迷思)\n想賺大錢但沒父母靠，想找貴人提拔又找不到，怎麼辦？\n\n承：(宇宙法則 - 重複訊號)\n「無形的貴人」。當同一件事或同一句話，在你身邊重複出現兩三次，那就是宇宙在提醒你！\n\n轉：(真實案例 - 中發票)\n我覺得自己沒偏財運。但有次一直聽到身邊人說要對發票，我就去看了雲端。就中了\n\n合：(行動呼籲)\n當你一直重複聽到某件事時，不要再滑手機了，趕快去做！",key_points:"貴人定義：不一定是有權有勢的人，有時是「無形的貴人」。例如早餐店老闆、路人的一句話，或是重複出現的資訊。\n宇宙法則：「路遙知馬力，日久見人心」。如果一件事在你身邊重複發生/聽到兩三次（例如一直聽到台積電、或是有人叫你買彩券），這就是宇宙在提醒你，要趕快去做。\n實證案例：主角本來不對發票（覺得沒偏財運），但因為一直聽到別人講「對發票」，去查雲端竟然真的中了1000元。如果不理會這些訊號，好運就會溜走。\n行動呼籲：當你一直重複聽到某件事，不要再滑手機懷疑了，趕快行動！",shoot_req:"",copywriting:"真正改變命運的『貴人』，都在『重複的訊號』裡面。\n可能是陌生人的一句話，可能是新聞反覆播放的訊息，也可能是你夢到的同一件事。\n\n宇宙的溝通方式就是『重複』。\n聽懂宇宙的暗示，貴人就在你身邊。\n\n你最近有什麼訊息一直重複出現嗎？",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0057",video_id:"",project_id:"V-C011-02",category:"日常",sub_category:"生活文化",title:"親測10年「念經懶人包」：招財、求健康、開智慧該念什麼？",summary:"念經真的有效嗎？設計師分享自己念經10年的心得，整理出針對不同需求的「念經指南」。想安神念《心經》只要1分鐘；想發財要念「大黑天神咒」；求健康找《藥師經》。如果真的沒空，只要念佛號也有效。",outline:"起：(經驗背書)\n念經真的有效嗎？\n\n承：(對症下藥 - 安神與招財)\n心煩意亂、睡不著怎麼辦？\n《心經》！它是入門首選，不到1分鐘就能念完，安定身心最強。\n\n想要發財呢？\n念『大黑天神咒』跟著我念：『那摩三滿多，母陀南，唵，摩訶迦羅，娑婆訶』。每天念三次，保證招財！」\n\n轉：(進階需求 - 健康與智慧)\n求身體健康？\n《藥師經》，它不只能求健康，其實也帶財！\n\n《地藏經》開智慧、消業障；想要內心強大就念《金剛經》\n\n合：(懶人解法與呼籲)\n太忙沒空念？隨口念『阿彌陀佛』或『觀世音菩薩』也可以！」\n這支影片多播放幾次，跟著我一起念招財咒！",key_points:"入門首選：《心經》。最短最好入手，不到1分鐘就能念完，能安定心神，一部經包含所有智慧。\n功能分類：\n招財：念**「大黑天神」**咒語（類似土地公），每天念三次保證招財。\n健康：《藥師經》，除了求身體健康，同時也帶有招財功能。\n開智慧/消業障：《地藏經》，雖然長，但能開智慧、消業障，也是孝順父母的經。\n堅定心志：《金剛經》，讓心像金剛一樣堅定不敗。\n懶人法門：真的沒時間或靜不下來，只要持誦佛號（如「阿彌陀佛」或「觀世音菩薩」）也有護持效果。",shoot_req:"",copywriting:"唸經真的有效！\n親測10年，我來告訴你！\n\n【安神】心煩意亂？→ 《心經》\n【招財】想要有財？→ 《大黑天神咒》\n【健康】身體健康？→ 《藥師經》\n【開智慧】消業障 →《地藏經》\n【內心強大】堅定不移 →《金剛經》\n\n【懶人救星】\n太忙沒空？隨口念「阿彌陀佛」\n或「觀世音菩薩」也可以！\n\n這支影片多播幾次，跟著我一起念招財咒\n\n#唸經 #招財 #心靈",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0058",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"個人成長",title:"有錢卻不快樂？每天5分鐘「內觀」讓錢自己找上門",summary:"現代人追求精品卻內心空虛，因為錢買不到家庭幸福。設計師分享「內觀」心法：不用上山修行，利用開車、洗澡的獨處時間找回平衡。當你覺得錢夠用就好，錢反而會自己流進來。",outline:"起：(金錢的真相)\n有錢不一定快樂，錢買得到物慾，但買不到家庭幸福。\n\n承：(內觀的方法)\n『內觀』。不用跑去山上打坐，只要在生活裡找5到10分鐘\n\n轉：(生活化應用)\n開車時內觀，因為那是最好的獨處時間（雖然有時會開過頭）。\n\n合：(財富心態與呼籲)\n人生要追求平衡。當你有『錢夠用就好』的想法時，神奇的是，錢反而會自己跟著來！",key_points:"金錢的侷限：錢能滿足物慾，但買不到快樂、家庭幸福與親子和樂。這也是為什麼現在精品熱度下降，大家轉而追求心靈富足。\n簡易內觀法：內觀不用去深山，只要每天5-10分鐘，獨處、不看手機、不看書，靜下來思考即可。也可以請主神護持。\n生活即修行：開車（最好的獨處時間）、洗澡（一天最放鬆的時間）都是內觀的好時機。\n財富悖論：人生要追求平衡。抱持著**「錢夠用就好」**的心態，不強求賺大錢，反而越賺越多，錢會自己跟著來。",shoot_req:"",copywriting:"有錢不一定快樂，你同意嗎？\n\n精品買得起，但買不到家庭幸福\n錢買不到的，才是人生真正要追求的\n\n祕訣就是「內觀」\n\n不用上山打坐，只要找5分鐘\n開車、洗澡、獨處時間都可以\n\n當你有「錢夠用就好」的想法時，錢反而會自己跟著來！\n\n#內觀 #心靈平衡",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0059",video_id:"",project_id:"V-C008-02",category:"觀念",sub_category:"創業職場",title:"累得像狗業績差？擺脫「廉價勞工」關鍵心法！",summary:"明明很認真、技術也不差，為什麼客單價拉不起來？影片直擊設計師的通病——「不敢打電話關心客人」。資深主管揭秘：文字訊息沒有溫度，容易被誤解；真正的業績來自於「黃金週」的電話關心，以及從「操作者」轉變為「髮型顧問」的思維升級。",outline:"起：(痛點直擊)\n設計師：我每天很認真、很勤勞，為什麼客單價就是上不來？業績超爛！\n主管：你有打電話關心客人嗎？\n設計師：很尷尬耶，會打擾客人吧？\n\n承：(觀念導正 - 聲音的力量)\n主管：「文字是冰冷的，容易被誤解。『聲音』才有溫度。」\n主管：「透過電話，你才能憑第六感聽出客人是真滿意還是假客氣。這才是抓狂粉的關鍵！」\n\n轉：(關鍵身分 - 髮型顧問)\n主管：「你不能只當剪髮工，要成為『髮型顧問』。」\n服務後一週內的黃金期打給他，不是只問好不好看，而是告訴他：『下個月頭髮會乾，記得回來護髮；兩個月後布丁頭長出來，我們怎麼補。』」\n幫他規劃未來，他才會一直回來找你！\n\n合：(總結與呼籲)\n技術是基本，關心是關鍵。就算你是社恐I人，真誠的關心也能吸引到同頻率的客人。\n\n你也卡在業績瓶頸嗎？\n底下留言「我是顧問」，送你一份回訪話術懶人包！",key_points:"溫度行銷：確認客人真實的滿意度（避免文字誤解），這是建立信任的關鍵。\n黃金時機：服務後的「第2-3天或一週內」是回訪黃金期。客人剛做完頭髮印象最深，這時候的關心最有效。\n身分轉換：不要只當剪頭髮的工匠，要當客人的「髮型顧問」。主動幫客人規劃下個月的保養、兩個月後的補染，創造回客率與高單價。\n社恐也沒差：你是I人（內向者）就經營I人客群，真誠比話術重要。",shoot_req:"",copywriting:"文字是冰冷的，聲音才有溫度。\n\n黃金72小時內一通電話，\n能聽出客人真實的想法，\n能展現你的專業與關心。\n\n讓自己從「操作者」升級到「顧問」，\n從「我幫你做造型」變成「我幫你規劃造型未來」，\n這樣的改變，你和你的客人都會很滿意你自己。",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0060",video_id:"",project_id:"V-C008-02",category:"觀念",sub_category:"創業職場",title:"髮廊不開店也能賺？疫情期間靠「這招」逆勢開3間！",summary:"針對經歷過疫情、看過很多店倒閉，因此對求職感到不安的設計師。強調品牌的「長期經營」與「穩定性」。",outline:"起：(危機背景)\n：「疫情那年全店沒客人，大家都快倒了，你們怎麼活下來的？」\n主角：「我們不只活下來，還開了第三家店！就是『行動力』。」\n\n承：(非常手段 - 到府服務)\n主角：「客人不敢來，我們就『到府服務』」\n全體設計師每週快篩、全身消毒，比客人還龜毛。\n\n轉：(養客心法 - 把客人當朋友)\n主角：「為什麼客人敢讓我們去家裡？因為我們不只當他是客人，是朋友。」\n主角：「術後一定電訪關心、過年送禮、生日送蛋糕。這種交情，就算沒開店，他們也會找你。」\n\n合：(呼籲與總結)\n主角：「魔鬼藏在細節裡。你也想學怎麼養出死忠鐵粉嗎？」",key_points:"危機處理：疫情沒客人敢出門？那就「到府服務」。這需要極大的信任感，也是品牌韌性的展現。\n細節控：為了讓客人安心，全店設計師每週快篩、嚴格消毒，這種「比客人還怕死」的態度贏得了信任。\n\n養客之道：\n主動電訪：不只傳訊息，術後必定電話追蹤髮況。\n情緒價值：過年送禮、生日送蛋糕，把客人當朋友寵。\n成果證明：因為這些堅持，疫情期間沒倒閉，反而還多開了一家店，現在擁有三家分店。",shoot_req:"",copywriting:"疫情全店沒客，大家都快倒了\n我們怎麼活下來的？\n還開了第三家店\n\n祕訣就是「行動力」\n\n魔鬼藏在細節裡，\n死忠鐵粉就是這樣養出來的！\n\n設計師求職不安？\n來找我們，教你怎麼穩穩賺\n\n#髮型設計師 #創業 #客戶經營",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0002-01",video_id:"",project_id:"V-C008-02",category:"趨勢",sub_category:"染髮",title:"春天人別染灰！這3款髮色才顯白",summary:"春夏秋冬四種類型的人有各自不同適合的髮色，適合春天人的髮色有這些",outline:"起：(春夏秋冬四季人)\n你知道有春夏秋冬四種人嗎?\n\n承：(舉例春天人)\n每個人都有自己的季節，每個季節有適合的顏色\n你(拍攝者)就適合春天，暖色系的類型\n簡易分辨_膚色，瞳孔，配件\n\n轉：(適合和不適合春天人的髮色)\n適合的髮色：(提供照片)\n不適合的髮色：(提供照片)\n\n合：(呼籲預約)\n不知道自己是哪個我來幫你看",key_points:"避雷指南：春天人（暖調/活潑）千萬別染「冷灰色系」！除非你每天全妝，否則素顏看起來會非常沒精神、顯髒。\n觀念導正：想染流行的「霧感色」不一定要冷色調！**「乾燥玫瑰」、「霧感暖橘」**既有流行的霧面質感，又顯白有活力。\n懶人優勢：設計師親身實測，暖色調CP值更高。\n冷色調：褪色快、易變黃稻草、需用矯色洗髮精。\n暖色調：褪色慢、顏色依然柔和、不用天天補色，適合每天洗頭的懶人。",shoot_req:"",copywriting:"你是春天人嗎？染錯髮色超顯黑！\n\n春夏秋冬四季人，各有命定髮色\n春天人適合暖色系，這3款最顯白\n\n膚色、瞳孔、配件就能看出你是誰\n不確定自己季節的來，我幫你一次看透透\n\n#髮色 #顯白 a",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0021-01",video_id:"",project_id:"V-C008-02",category:"觀念",sub_category:"頭皮",title:"天天洗頭會禿頭？",summary:"破解掉髮迷思，導正「清潔頭皮」的重要。",outline:"起：(切入恐懼) \n每次看到排水孔一堆頭髮就嚇死？\n你以為「天天洗頭」掉髮？這是錯的\n\n承：(專業解釋) \n掉髮是正常代謝(50-100根/日) 不洗頭會油脂堆積 → 堵塞毛孔 → 發炎 → 掉更多！\n\n轉：(觀念翻轉) \n洗頭是在「洗頭皮」不是洗頭髮。\n頭皮乾淨健康，頭髮才漂亮\n\n合：(呼籲留言) \n你是天天洗，還是三天洗一次？",key_points:"破除迷思：每天掉 50-100 根頭髮是正常的代謝，跟天天洗頭無關 。\n\n判斷標準：\n\n油性頭皮：建議每天洗（尤其是清潔力溫和的洗髮精）。\n乾性頭皮：建議 2-3 天洗一次，避免過度清潔 。\n正確洗法：一次洗兩遍。第一遍洗油脂灰塵，第二遍讓洗髮精發揮功效 。\n痛點解決（癢/懶）：頭皮癢往往是因為「乾」或「換季」，不是髒 。\n產品置入：「頭皮水（修護液）」 = 頭皮的化妝水。懶得洗頭或頭皮乾癢時噴，保濕又舒緩 。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0004-01",video_id:"",project_id:"V-C008-02",category:"技術",sub_category:"染髮",title:"漂髮褪色像稻草？做對這3步，染一次美半年！",summary:"教大家最划算染髮，漂一次可以有三種髮色，漂髮後染灰，褪綠色，用粉色補色，在用紫色\n總共省多少錢",outline:"起：(痛點直擊 - 褪色焦慮)\n我漂了6次，髮質還是超順！\n很多人搞不懂『護色』跟『補色』怎麼用\n\n承：(觀念教學 - 護色 vs 補色)\n剛染完的前兩週，要用『護色洗髮精』。它是透明沒顏色的，功能是鎖住顏色，讓它不要掉那麼快。\n等到顏色開始褪了，覺得不飽和了，這時候才換『補色劑』，把顏色補回去。\n\n轉：(進階玩法 - 洗髮精調色)\n補色劑還能玩『調色』！像我頭髮帶綠，我就洗粉紅色（去綠）洗完會變成超美的粉奶色。\n不想補回原本顏色，也可以加點紫色，變成霧感灰紫。根本不用重新染！\n\n合：(保養關鍵與呼籲)\n漂髮一定要勤護髮，髮質好顏色才漂亮。",key_points:"漂髮觀念：想染特殊色（如寶藍色）一定要漂，先拿掉黑色素才上得去。雖然漂髮傷髮質，但只要「居家護理」做得好，漂5-6次也能很順。\n\n補色劑區分：\n護色洗髮精（無色）：剛染完用，目的「延緩褪色」，讓顏色持久一點。\n補色劑（有色）：顏色褪掉後用，目的「把顏色補回去」或「矯色」。\n使用順序：染完兩天不洗頭 → 前期洗護色（延緩掉色）→ 後期褪色了改洗補色（補回顏色）。\n調色神技：不想補回原本顏色？可以用補色劑玩調色。例如綠色殘留想去綠，可以洗粉紅色（對比色），會變成漂亮的粉奶色。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0036-01",video_id:"",project_id:"",category:"觀念",sub_category:"剪髮",title:"大臉只能靠頭髮遮？",summary:"打破「圓臉/大臉一定要留長髮遮蓋」的迷思。透過真實案例分析，揭露為什麼「一字剪」會讓你像路人甲，而「高層次」剪裁（如狼尾頭）透過增加頭頂蓬鬆度，反而能拉長臉型，達到真正的視覺小臉效果。",outline:"起：(視覺衝擊 - 路人變主角)\n(畫面：拿出客人以前的長直髮/一字剪照片 vs 現在的高層次帥照)\n這是你？根本是路人甲\n\n承：(專業分析 - 為什麼越遮臉越大)\n臉頰遮住，但頭頂（頂部區）是塌的，視覺重心橫向發展\n\n轉：(解決方案 - 顱頂增高術)\n想要小臉，重點是**『高層次』頭頂剪蓬、拉高顱頂，臉型瞬間就被拉長修飾了\n\n合：(呼籲互動)\n想知道你的臉型適合什麼層次？",key_points:"迷思破解：頭髮遮在臉頰旁，如果頭頂是塌的，臉看起來會更寬、更圓。\n關鍵技術：**「高層次剪裁」**能讓頂部區蓬鬆（增高顱頂），視覺焦點上移，臉型自然拉長變小。\n整體設計：髮型不能只看臉，還要看**「穿搭風格」**。中性/個性穿搭配上俐落層次，比死板的長直髮更有星味。",shoot_req:"以前的照片",copywriting:"",external_link:"",confirmed:false,editor:""},
+    {script_id:"A0007-01",video_id:"",project_id:"",category:"技術",sub_category:"護髮",title:"護髮油到底要抹多少？",summary:"客人覺得抹護髮油頭髮會變一條一條的像沒洗頭？怎麼用才對",outline:"起：(NG 破題)\n護髮油真的難用，用完都變油條？\n\n承：(黃金用量與位置)\n短髮/中長髮： 一顆「紅豆」大小。\n長髮/受損髮： 一枚「10元硬幣」大小。\n重點說明： 「切記！只能抹在『耳下』到髮尾，絕對不要碰到頭皮！」\n\n轉：(關鍵手法：搓熱)\n雙手掌心用力搓揉，把油推開直到手掌發熱。\n是用抓的不是用抹的，每根頭髮才會把油吃進去，少量多餐\n\n合：(呼籲留言)\n學會了嗎？",key_points:"",shoot_req:"",copywriting:"",external_link:"",confirmed:false,editor:""},
+    {script_id:"A0009-01",video_id:"",project_id:"V-C008-02",category:"日常",sub_category:"工作現場",title:"推車塞爆！30把梳子幹嘛用？",summary:"美髮師的梳子種類超多，這些都有不同用法嗎？",outline:"起：(數字揭密) \n我家只有 2 把梳子，美髮店到底有多少梳子？\n\n承：(畫面衝擊) \n（店內全部梳子） 圓梳、板梳、尖尾梳、排骨梳、按摩梳...隨便算一下超過 ＸＸ 把！\n\n轉：(專業價值) \n為什麼要這麼多？\n吹直、吹捲、刮蓬、挑染，每一把的功能都不一樣\n\n合：(呼籲留言) \n猜猜看，那我們的「髮夾」有幾支",key_points:"數量震撼：隨便一算就超過30把梳子，建立職人對細節的堅持（不同髮長、不同捲度都要換梳子）。\n\n特殊功能揭秘：\n-圓梳：分大小支，小支吹耳下短髮/男生，大支吹長髮。\n-排骨梳：長得像阿嬤用的，其實是用來吹出「貴婦頭」的蓬鬆感。\n-叉梳：長得像吃水果的叉子，其實是男生抓線條/油頭專用的挑梳。\n-破解迷思：韓國很紅的「透氣弧形梳」，不是梳了就會蓬，是因為它「有洞」，必須搭配吹風機讓熱風灌進髮根，才能撐起蓬度。",shoot_req:"",copywriting:"30把梳子\n每一把都有理由存在\n\n圓梳、板梳、尖尾梳、排骨梳...\n\n一把都不能少。\n\n然後..你猜我們髮夾幾支？\n\n#桃園髮廊 #美髮設計師 #髮型師日常",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0023-01",video_id:"",project_id:"V-C008-02",category:"觀念",sub_category:"頭髮",title:"多吃『黑芝麻』頭髮會變黑？",summary:"說明食補與白髮的關係，強調「預防勝於治療」",outline:"起：(食補迷思) \n芝麻可以把白髮變黑髮。真的嗎？\n\n承：(事實呈現) \n殘酷真相：已經變白的頭髮，是毛囊黑色素退化，吃再多芝麻也「變不回」黑色了。\n\n轉：(芝麻的真正用途) \n芝麻有豐富的鋅跟油脂！\n可以保養讓頭髮有光澤健康。\n\n合：(呼籲留言) \n為了頭髮，你還吃過什麼偏方？",key_points:"破解迷思：芝麻有營養（鋅、油脂），但無法讓白髮變黑。就像吃白麵條也不會讓胃變白一樣，「吃黑補黑」是無稽之談。\n核心觀念：白髮成因主要是「基因遺傳」與「壓力/作息」。\n養髮真相：雖然基因難改，但提供頭皮好的環境（如魚子醬、藻類精華養髮液），「有機會」讓新長出來的頭髮健康。\n終極解法：不想等養髮？推薦「白髮共存（光線染）」。模糊白髮界線，不用一個月補一次，可以撐半年，省時又時尚。",shoot_req:"",copywriting:"多吃黑芝麻頭髮就會變黑？\n小心這個迷思害了你\n\n已經白了的頭髮再吃再多芝麻也回不了頭\n但芝麻真的有用！\n\n它有 豐富的鋅 + 油脂成分\n可以讓 頭髮光澤 + 健康質感\n預防勝於治療~~\n\n你還為了頭髮試過什麼偏方？\n留言告訴我👇\n\n#桃園髮廊 #頭髮保養",external_link:"",confirmed:true,editor:"峻恩"},
+    {script_id:"A0006-01",video_id:"",project_id:"V-C008-02",category:"趨勢",sub_category:"髮型",title:"女生最性感的部位是哪裡？",summary:"脖子是女生魅力的關鍵之一！長長的脖子讓人感覺年輕有活力，這幾款髮型可以拉長脖子還能修飾臉型",outline:"起：(提問切入主題)\n女生最性感的部位是哪？（回答脖子)\n\n承：(說明看脖子的原因)\n一般人都看腿，看脖子可以看出這個人精不精緻\n\n轉：(說明脖子顯露出的重點)\n一般人很少注意脖子，但脖子很常被忽略，選對髮型可以拉長脖子，也可以顯臉小\n\n合:（呼籲快去剪髮)\n想要變精緻，快去剪這五款髮型",key_points:"吸睛話題：打破常規，強調「脖子」比「胸部」更性感，引發討論。\n\n視覺修飾：針對「短臉」或「圓臉」痛點，提出「剪短露出鎖骨」的解決方案，視覺上拉長比例。\n\n風格定義：強調一刀切短髮的關鍵字是「俐落」、「個性」、「性感」，消除剪短會像男生的疑慮。\n\n真實見證：利用對話中對舊照片的驚嘆（以前剪短髮很帥），增加說服力。",shoot_req:"可以修長脖子的髮型照片",copywriting:"",external_link:"https://www.japaholic.com/tw/article/detail/21658",confirmed:true,editor:""},
+    {script_id:"A0061",video_id:"",project_id:"V-C027-01",category:"日常",sub_category:"文化",title:"結婚三年生不出來?來配天宮「求花」超靈驗",summary:"來到嘉義朴子曼都店，設計師熱情介紹當地最有名的地標——「配天宮」。這裡不僅是拍照景點，更是全台知名的「求子聖地」。影片分享真實案例：有人結婚三年生不出來，來這裡求花（白花求男、紅花求女）後立刻有好消息。除了求子，也能求業績！",outline:"起：(在地特色)\n嘉義朴子最有名的是什麼?\n「配天宮」(字幕：朴子必去！配天宮)\n\n承：(求子神蹟)\n那裡最厲害的是『求花』！想生兒子求白花，兒求紅花。\n說明身邊真的故事\n\n轉：(求業績)\n不求小孩能求什麼？\n求業績啊！媽祖娘娘也能保佑你業績長紅，過年那邊人超多的。\n\n合：(行動呼籲)\n想求子還是求業績？\n來朴子找我做頭髮，順便帶你去拜媽祖！",key_points:"地緣優勢：曼都朴子店走路5分鐘到「配天宮」，做完頭髮順便拜拜。\n求花習俗：配天宮最靈「求花」。白花生兒子，紅花生女兒。\n真實見證：設計師親友結婚三年一直沒有小孩，壓力很大，設計師推薦去配天宮「抱一下/求一下」，結果沒多久真的懷孕了。\n事業加持：媽祖娘娘不只管生小孩，也可以來求業績、保佑生意興隆。",shoot_req:"",copywriting:"嘉義超神地標「配天宮」！\n真人真事：有夫妻結婚三年沒動靜，來這誠心「求花」（白花求男、紅花求女），\n結果馬上就傳出好消息！超猛\n\n\n就算還不想生小孩也沒關係，來求業績也超靈驗！媽祖娘娘保佑大家荷包滿滿，過年人潮真的沒在開玩笑的",external_link:"",confirmed:true,editor:"阿甫-1"},
+    {script_id:"A0062",video_id:"",project_id:"V-C027-01",category:"技術",sub_category:"染髮",title:"揭秘染髮變色魔法！",summary:"設計師的調配染膏後台",outline:"起：(視覺好奇)\n這白白黑黑是？\n這是要讓你變漂亮的秘密！\n\n承：(衝突點)\n染膏都很白耶！看不出來是什麼顏色啊？\n等一下它『發酵』你就看得到了。\n\n轉：(原理揭密)\n發酵？當麵包喔？所以你加了什麼？\n染膏加雙氧水。它們混合在一起產生作用，才會在頭髮上顯色。\n\n合：(專業區隔)\n在外面買的好像不用這麼麻煩，擠上去就好了？\n專業的東西跟開架式是不一樣的，學問很大的！",key_points:"視覺驚奇：染膏擠是白色的？混合雙氧水，等待它「發酵」後才會變成目標顏色。\n專業價值：市售（如寶雅）的染髮劑通常是一劑到底直接抹；專業染髮則講究染膏與雙氧水的比例調配與作用原理，效果大不同。",shoot_req:"",copywriting:"一開始看不出顏色？等它「發酵」你就明白了\n美髮師的白色染髮魔法！專業級染膏的秘密\n\n#嘉義美髮 #染髮推薦 #霧感髮色 #",external_link:"",confirmed:true,editor:"阿甫-1"},
+    {script_id:"A0063",video_id:"",project_id:"V-C027-01",category:"技術",sub_category:"染髮",title:"白髮只能染黑？設計師教你選色",summary:"客人想染淺色蓋白髮，但擔心遮不住。設計師解釋「白髮專用色」與「特殊色」的差別：特殊色容易透光、褪色快；而白髮專用色飽和度高，蓋得住且不易褪成金黃稻草。影片更進一步教學如何根據膚色挑選蓋白髮的顏色，冷暖皮選對了，皮膚還能變白！",outline:"起：(客人需求)\n白髮想要染淺色可以嗎？(現場指顏色)\n不行喔！那個是特殊色，染在白髮上會『透光』蓋不住\n\n承：(專業解析)\n白髮要『專用色』，飽和度夠，蓋深又均勻\n褪色後不會變成稻草金，髮質看起來比較好\n\n轉：(膚色選色術)\n看起來都很像，有差嗎？\n冷皮膚→冷色調，皮膚變更白\n黃皮膚，暖色系（帶紅），氣色才不會蠟黃。\n\n合：(加碼知識與呼籲)\n沒白髮可以用嗎？\n可以啊！褪色更慢、更有質感。",key_points:"遮蓋力差異：一般特殊色/淺色染在白髮上容易「透光」（蓋不深、亮亮的）且易褪色；白髮專用色飽和度高，能均勻覆蓋，且褪色後不會變金黃稻草\n選色關鍵（膚色）：蓋白髮不是只有一種深色！\n●黃皮膚/暖皮：適合偏暖色系（如帶紅、帶粉），能修飾氣色。\n●冷白皮：適合冷色系。\n●測色技巧：設計師會比對客人的「手部膚色」來推薦最顯白的髮色。\n非白髮也能染：這類「調整白髮專用」的染膏，沒有白髮的人也可以染，優點是髮尾不容易褪得太淺太黃，質感維持度更好。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0064",video_id:"",project_id:"V-C008-02",category:"趨勢",sub_category:"染髮",title:"從大學生到上班族的2026髮色趨勢",summary:"揭秘2026年的髮色關鍵字是「暖霧感」。針對不同職業與膚色，設計師推薦三款不踩雷髮色：溫柔的「粉霧棕」、低調質感的「黑茶色」、以及所有人都適用的「焦糖橘棕」。無論你是想低調、想顯白還是想蓋白髮，這支影片都有解答。",outline:"起：(趨勢權威)\n(畫面：展示IG上滿滿的時尚髮型照片)\n趨勢每個月都在更新，趨勢是不斷『延伸』的\n\n承：(方案一：溫柔顯白)\n(畫面：展示粉霧棕/莓果棕髮色)\n上班族適合：溫柔、有氣色，選『粉霧棕』。\n帶點暖紅的棕色能柔和膚色，素顏也顯白，重點是不用漂，褪色也不會變稻草！\n\n轉：(方案二：低調質感 vs 全能救星)\n(畫面：展示黑茶色與焦糖橘棕)\n想要低調奢華選『黑茶色』。室內像黑髮，陽光下透出冷茶色，質感爆表。（但黃皮要上妝）\n有白髮困擾，又想跟上趙露思風潮，染『焦糖橘棕』不挑膚色、不挑年紀，誰染誰美。\n\n合：(呼籲行動)\n(IG畫面)\n我們的IG，有每月的髮型趨勢，掌握第一手變美資訊！",key_points:"●趨勢權威：強調公司有專門團隊研究流行趨勢，每個月都會更新最新髮型，而不只是一年一次。\n●分眾推薦：\n-上班族/大眾：推薦「粉霧棕/莓果霧棕」。帶點紅或橘的暖棕色，能柔亮膚色，褪色也不會黃，接受度最高。\n-時髦大學生：推薦飽和度高的「安可拉紅」，前衛有個性。\n-低調悶騷/怕褪色：推薦「黑茶色」。冷色調有質感，室內像黑髮，陽光下有茶色光澤。但黃皮需注意（建議搭配紫色隔離霜修飾）。\n-全齡通殺/蓋白髮：推薦趙露思同款「焦糖橘棕」。不挑膚色、不挑年齡，還能完美遮蓋白髮。",shoot_req:"",copywriting:"2026髮色趨勢，在流行和個人特色之間，我們幫你整理了這幾種適合你的髮色！\n\n追蹤Most hair salon月月都有新趨勢！",external_link:"",confirmed:true,editor:"阿甫-1"},
+    {script_id:"A0065",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"瘦身",title:"超商懶人瘦身菜單",summary:"維持 24 腰的婷姐，如何靠「全家/便利商店」解決一日三餐。從怕想睡覺的早餐搭配，到 100 元搞定的清爽午餐，再到開車也能吃的雞胸肉晚餐。專為忙碌、沒空煮飯、甚至愛喝兩杯的上班族設計的「不挨餓、吃得對」生存指南。",outline:"起：(視覺衝擊 - 反差人設)\n你每天喝酒，為什麼腰還可以維持 24 腰啊\n因為我有在『控管』啊！走，帶你看我的秘密廚房！\n\n承：(乾貨輸出 - 三餐懶人包)\n【早餐篇】\n無糖豆漿 + 香蕉：「早餐千萬別吃太飽，不然會想睡覺！無糖豆漿配顆蛋或香蕉，蛋白質夠又不愛睏。」 \n\n【午餐篇】\n健康餐盒：「中午想吃飽又怕胖？選這種有飯有肉的健康餐，清爽少油，一百塊搞定！」 \n\n【晚餐】\n雞胸肉/滷青菜：「晚上不想負擔太大？或是像我一樣要在車上吃？即食雞胸肉跟滷青菜是神隊友，微波就能吃！」\n\n\n轉：(痛點共鳴 - 沒時間不是藉口)\n高纖燕麦奶或高蛋白，直接用喝的補充營養\n\n合：(金句總結 - 行動呼籲)\n減肥不是吃得少，是吃得『對』",key_points:"利用「天天喝酒」與「維持 24 腰」的巨大反差，吸引想瘦又想快樂的觀眾 。\n\n\n場景帶入感：直接在超商貨架前挑選，解決觀眾「進超商不知道買什麼」的選擇困難症 。\n早餐策略：無糖豆漿 + 香蕉/水煮蛋。重點是「不要吃太飽」，避免上班想睡覺（Food Coma） 。\n午晚餐策略：午餐：選有飯、有肉的健康餐盒（約 100 元），清爽不油膩 。\n晚餐/點心：雞胸肉、滷青菜、水果。強調「無負擔」與「方便性（車上可吃、微波即食）」 。\n\n金句輸出：「不是吃得多或少，是吃得對才是最重要的。」",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫-1"},
+    {script_id:"A0066",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"開箱",title:"義美只有小泡芙？私推「3款欠買美食」",summary:"別再只會買小泡芙了！影片直擊義美門市，挖掘三款「內行人才懂」的必買清單。從冷凍庫裡口感像冰沙的檸檬芝士條，到皮才是本體的酥皮蛋糕，還有不用等過年、隨時解饞的迷你年糕。最後加碼健身族必看的「高蛋白專區」，證明傳統品牌也能很潮！",outline:"起：(直接破題 - 帶路模式)\n(畫面：鏡頭跟著主角走進義美門市，節奏輕快)\n帶你去義美買 3 種『最欠買』的隱藏版好物\n\n承：(清單揭曉 - 感官暴擊)\n【Top 1 檸檬芝士條】\n【Top 2 酥皮蛋糕】\n【Top 3 迷你小年糕】\n\n轉：(加碼彩蛋 - 健身族福音)\n每款產品開箱\n\n合：(互動結尾)\n這三樣你吃過哪樣？還是你有更厲害的名單？\n你的義美必買是什麼？留言告訴我！",key_points:"直接用「3種最欠買的東西」破題\n\n口感描述 \n檸檬芝士條：關鍵字是「冰磚口感」、「酸甜不膩」，強調冷凍吃最好吃。\n酥皮蛋糕：強調「皮很酥」、「專門吃皮」的共鳴點，把平凡的蛋糕描述成神仙下午茶。\n小年糕：解決「想吃年糕要等過年」的痛點，且份量剛好（一包幾片），適合單身或嘴饞族。\n受眾廣度：涵蓋了甜點控（蛋糕/芝士）、傳統派（年糕）以及健身族（高蛋白冰淇淋/粉），一網打盡。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0067",video_id:"",project_id:"V-C025-01",category:"技術",sub_category:"面對恐懼",title:"上台腦袋一片空白？「3招克服緊張的方法」",summary:"不管是學生報告還是職場簡報，上台前的心臟狂跳大家都懂。影片中，有豐富演講經驗（曾至靜宜大學授課）的講師，不藏私分享她上台前的「調頻儀式」。透過深呼吸重置狀態、眼神定點聚焦、以及刻意放慢語速，三個簡單卻極其有效的步驟，讓你從發抖小白秒變自信演講者。",outline:"起：（切入中點）\n要怎麼克服上台緊張啊？\n\n承：（解決方案）\n3個小秘訣\n1.深呼吸\n2.把底下的人當石頭\n3.做自己 （不要學其他人的招數，講自己的事情時才不會緊張）\n\n合：（反差）\n和一般人一樣也會緊張的畫面",key_points:"痛點切入：針對「上台緊張」、「眼神亂飄」、「語速失控」這三個最常見的症狀開藥方。\n\n具體化建議 \n\n深呼吸：不是隨便吸，是要有一種「重新開始」的儀式感。\n視線定錨：教觀眾「看鼻子/看定點」，並提出「把觀眾當石雕」這種有趣的心理暗示，容易記憶。\n語速控制：強調「越緊張越要慢」，甚至停頓 3-5 秒都沒關係，打破「空白就是尷尬」的迷思。\n\n真實感：保留影片最後試圖放慢語速被吐槽「太慢了」的片段，增加幽默感與真實互動。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0068",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"職場",title:"微波爐能煎魚？懶人必備神器開箱！",summary:"還在吃隔夜便當嗎？設計師開箱網紅團購神器——微波烤盤。標榜只要把生鮮食材（魚、節瓜）丟進去微波，就能做出像平底鍋「煎」出來的恰恰口感，而且完全沒油煙！影片實測證明：多汁、有焦香、連難熟的節瓜都能搞定，上班族也能輕鬆吃現煮料理。",outline:"起：(切入主題)\n拉拍攝到冰箱\n開箱上班族一定要買的 微波調理煎烤盒 給大家\n\n承：(產品介紹）\n看起來像鐵製，適合微波\n特殊材質，可以蓄熱循環食物360度循環加熱\n結果呈現，食材變成烤和煎的口感\n重點：討厭油膩臭味的人不用怕因為不會有油煙\n原理：有蓋子保護讓美味悶在裡面\n\n轉：（真實操作）\n選擇平常會用來 煎與炸 的食材實際操作\n鯖魚 牛排 或 豬排 （可選牛排也是會亂噴的食材）\n舉例牛排：\n1.平常煎的時候會有這些ＮＧ狀況：亂噴、粘鍋、要翻面等\n2.優點1：解決亂噴：牛排看起來沒什麼油，但是下鍋的時候油脂會跑出來，油脂很多就會亂噴\n\n3.優點2：不會粘鍋：材質是不沾塗層的，所以也不會粘鍋\n4.優點3：講完話就可以放到微波爐\n\n合：(實際效果)\n1.食物看起來的樣子\n2.大家試吃口感\n3.使用工具只有微波爐\n4.食材沒有加“油”\n5.附加價值：可以做 全方位料理方式 煎/煮/蒸/烤/炊\n再次提及 品名：多功能微波料理盒 推薦\n還想知道什麼好物開箱？",key_points:"懶人救星：不用開火、不用洗一堆鍋子，食材丟進去微波就搞定。\n口感驚艷：打破微波食物爛爛的印象，真的能做出「煎」的口感（表皮微焦、內部多汁）。\n無油煙健康餐：解決租屋族怕油煙的困擾，輕鬆做原型食物料理（魚、雞胸肉、蔬菜）。\n高效生活：前一晚備好料冰冰箱，早上帶出門，中午微波10分鐘就能吃到新鮮現煮的午餐，不用再吃隔夜菜。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0069",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"保養",title:"喝完的茶包別丟！時代眼淚你知道嗎",summary:"茶包居然能當護唇膏？影片直擊副總在辦公室的「奇怪行為」，拿喝剩的茶包猛嚕嘴唇。除了分享茶多酚抗氧化、去死皮的小撇步，副總更爆出一個「資深房仲/業務」才知道的秘密用法——把茶包塞在電話座機下除臭！結果慘遭年輕員工吐槽：「這是什麼老人味話題？」展現副總與員工像朋友般互虧的可愛互動。",outline:"起：(視覺衝擊 - 這是什麼怪招？)\n(畫面：特寫副總拿著濕茶包在嘴唇上瘋狂摩擦)\n生活小智慧！喝完的茶包不要丟，這是天然的去角質神器\n\n承：(知識輸出 - 客家精神)\n茶葉有茶多酚跟維他命C，抗氧化又美白！嚕完死皮都沒了。\n你是客家人喔？那滷味的滷包可以嗎？\n\n轉：(時代眼淚 - 世代大戰)\n我們小時候做，都會把茶包放在『電話座機』的下面\n\n合：\n聽過茶包放電話的留言+1",key_points:"獵奇開頭：「拿濕茶包嚕嘴唇」的畫面開場，視覺衝擊強，觀眾會想知道「她在幹嘛」。\n\n實用知識點：茶包不要丟 -> 去角質、抗氧化（茶多酚/維他命C） -> 美白修護。\n爆笑互動：員工吐槽點滿分，從「你是客家人嗎？」到「滷味包可以嗎？」，強化了輕鬆的職場氛圍。\n社群互動梗：後半段的「茶包放電話話筒下」。這是一個強大的「年齡過濾器」，能釣出資深業務或有點年紀的觀眾留言「我有做過！」，增加共鳴。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0070",video_id:"",project_id:"V-C025-01",category:"觀念",sub_category:"保養",title:"頭皮老了臉就垮了！早C晚A頭皮竟然有？",summary:"大家都在瘋臉部的「早C晚A」，但你知道頭皮才是最需要抗老的地方嗎？影片透過輕鬆的對話，打破「頭皮不用保養」的迷思。清楚解釋白天用維他命 C 當「頭皮防曬傘」，晚上用 A 醇做「肌底修復」。更重要的是，直接破解消費者覺得「頭皮保養很貴」的心防，用一天 10 元的銅板價創造高 CP 值誘因。",outline:"起：（切入主題）\n問：早C晚A真有效嗎？大家都在推？\n開玩笑回：有效啊，就是早上喝咖啡，晚上喝酒精，我都這樣喝，你看我身體健康。\n\n承：（說明原理）\n場景：回到保養介紹場景（有放產品的地方）\n說明早Ｃ晚Ａ是代表成分的縮寫\n\n轉：（產品介紹）\n早Ｃ說明：成分是維生素C（需要有維生素Ｃ的產品），可以抗氧化、中和自由基、預防頭髮斷裂，想要頭髮不要一直斷，保護作用（抵禦熱傷害，紫外線傷害）\n晚 A說明：我們的頭皮保養比較不同，成分是酒精(Alcohol），晚上是頭皮休息最好的時候，頭皮要清潔，要呼吸，要更新，頭皮更好的修護。\n\n合：（總整理）\n早Ｃ晚Ａ是：早上保護，晚上修護，是一個懶人保養方法。",key_points:"概念借勢：利用大眾已經熟知的「早C晚A」口訣，降低教育成本，讓消費者秒懂這是在做「日防護、夜修護」。\n\n關鍵成分與功效：\n早 C (維他命C)：重點在「防護」。對抗紫外線、自由基，建立頭皮屏障（像防曬的概念）。\n晚 A (A醇)：重點在「修護」與「彈性」。恢復頭皮彈性，避免老化（頭皮鬆弛會導致臉皮下垂）。\n\n恐懼行銷：金句「臉跟頭皮是同一張皮」，喚醒危機意識。\n價格錨點：A 醇通常給人昂貴印象，但這裡轉化為「每天只要 10 元」，瞬間讓產品變得親民好入手。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0071",video_id:"",project_id:"V-C025-01",category:"技術",sub_category:"成分",title:"省錢變爛頭？這瓶水不能用",summary:"你也習慣洗髮精快用完就「加水搖一搖」繼續用嗎？甚至像阿嬤一樣覺得這樣很省？影片直擊設計師看到員工加水時的崩潰反應，並揭露驚人真相：自來水中的細菌會破壞洗髮精的防腐系統，讓整瓶變成「細菌培養皿」。不想越洗頭越癢，這支影片一定要看！",outline:"起：（錯誤示範）\n拍攝正在把洗髮精加水，婷制止。\n\n承：（專業說明）\n原理說明：水有細菌，細菌滋生會讓產品變質，用在頭上你不知道會變成怎樣。\n大眾認知：但是看不出來，而且感覺沒有不一樣，味道也一樣只是淡一點。\n洗髮精：變質的洗髮精用了會掉髮，頭皮癢。\n專業說明：成分有固定比例，製作原本是無菌，界面活性劑特性。\n\n轉：（舉例說明）\n舉例1.礦泉水：像泰山純水開封對嘴喝，放一天就在喝他就味道會不一樣。純水是沒有其他東西的，口水有細菌，開了就要快喝。\n舉例2.茶：煮好的茶是把細菌殺死，你對嘴喝有細菌，沒有快點喝完，過一陣子他就發酵味道不一樣，你敢喝嗎？\n\n合：（產品推薦）\n想省錢也不用這樣傷害自己，這一瓶不要用了，我這瓶你拿回去用。",key_points:"生活共鳴)：「加水搖一搖」，90% 的人都做過或看家人做過，秒抓眼球。\n\n恐懼訴求：關鍵字「無菌」vs「雜質細菌」。強調自來水不是無菌的，加進去會讓洗髮精變質、發臭。\n\n痛點連結：把「頭皮癢」跟「加水」連結在一起。阿嬤頭皮癢不是因為沒洗乾淨，是因為洗了細菌水！\n\n類比教學：用「喝過的寶特瓶飲料放幾天會臭」（口水細菌）來比喻，讓艱澀的化學原理瞬間變得好懂。\n\n正確觀念：如果真的要加水，「當天用完」可以，絕對不能放過夜。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0072",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"保養",title:"皮膚好到像醫美？懶人保養全靠「它」",summary:"為什麼有些人皮膚好到發光？影片直擊車內閒聊現場，揭露皮膚好到被朋友嫉妒的秘密竟然是「每天敷面膜」。打破「面膜不能天天敷」的迷思，創辦人親自現身說法：只要成分夠單純（只補水），敷臉就能取代繁瑣的保養步驟。專為懶人設計的「高效率養膚術」，洗完臉一片搞定！",outline:"起：（切入主題）\n拍攝問：你皮膚真的很好欸（近拍）而且還發光，怎麼做到？\n\n承：（痛點說明）\n解決方案：直接說就是敷面膜。（好像沒什麼大驚小怪的感覺）\n痛點場景：天天台灣到處跑，氣溫都不一樣，熬夜又晚睡，很容易臉乾或出油。\n親身經驗：我就很喜歡敷面膜，狂買，但年紀到好像也不是隨便用就有效，所以我就乾脆自己做，還真的被我做出來了。\n\n轉：（產品介紹）\n拍攝拿起面膜：該不會就是他stella吧?（念品牌名唸不好婷糾正）\n婷：是Saltea，是簡單就是力量的意思。\n說明成分：成分簡單就是ＸＸＸＸＸＸ，講這麼多你也聽不懂，反正就是讓皮膚變好的成分，讓膠原蛋白和皮膚修護提升的。\n\n合：（成果展示）\n直接看我的臉就知道了，敷了就是這樣。",key_points:"懶人福音：強調「洗完臉只敷臉」，不擦其他東西。抓住現代人想美又怕麻煩的心理。\n\n破除迷思：針對「面膜不能天天敷」的疑慮，提出「純補水 = 喝水」的邏輯，將產品定位為肌膚的日常飲水，而非負擔重的強效藥。\n\n創辦人背書：因為市面上的材質都不滿意，所以「乾脆自己做」。這句話展現了對品質的極致要求（服貼度、觸感）。\n\n生活化場景：「車上隨時都有貨」，隨時送人試用，展現對產品的絕對自信。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0073",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"穿搭",title:"155cm 小隻女必看！Uniqul必敗隱藏版好物",summary:"小個子買褲子最怕要改褲長！影片直擊 155cm 嬌小女生的試穿現場，挖掘出一款「免改長度」且腰部平口設計、顯瘦不顯小腹的神褲。同場加映避免尷尬內褲痕的「無痕內褲」，以及上班族秋冬必備的「C 系列羊毛衣」。主打便宜、實用、好搭，就算穿一季就換也不心疼的超誠實購物觀。",outline:"起：(痛點直擊 - 小隻女救星)\n155 公分的女生聽好了！這條褲子真的必買！完全不用改長度！\n我有包色強迫症，這件直接包了三色！特價才 590，不買對不起自己。\n\n承：(細節推坑 - 顯瘦與清洗)\n它腰部是平口設計，不像一般棉褲穿起來肚子那邊一坨很顯胖，這件超修身。\n不過怕起毛球變形的話，建議跟我一樣乖乖手洗，過個水晾乾就好，能穿更久！\n\n轉：(禮儀教育 - 拒絕尷尬)\n再來！穿西裝褲或瑜珈褲的，拜託一定要穿『無痕內褲』！\n露出內褲痕跡真的超級扣分。選膚色或淺色的，薄薄一片舒服又美觀。\n\n合：(高CP值哲學 - 羊毛衣)\n最後這個 C 系列羊毛衣，薄薄的但很保暖，塞進褲子也不顯臃腫。\n重點是便宜！穿一季起毛球了，明年直接丟掉換新也不心疼，這才是小資生存之道！",key_points:"精準受眾：鎖定 155cm 小個子。強調「不用改褲長」絕對是最大的吸引力。\n顯瘦細節：針對棉褲容易顯胖的痛點，強調這款是「平口腰頭」（非傳統鬆緊帶），修身效果好。\n尷尬救星：推廣「無痕內褲」。強調穿貼身褲、瑜珈褲時，露出內褲痕跡（VPL）是「超級不好看」的，教育觀眾這是基本禮儀。\n消費價值觀：針對 C 系列羊毛衣，提出「穿一季就丟」的快時尚觀點。因為便宜、易起毛球，不如當作消耗品，每年換新，這種真實的大實話反而容易圈粉。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0074",video_id:"",project_id:"V-C025-01",category:"日常",sub_category:"文化",title:"犯太歲必看！除了安太歲，這招讓「衰運變強運」",summary:"屬馬的今年犯太歲心慌慌？去廟裡安太歲的真實過程，教你怎麼選燈（求財、求姻緣、求健康）。但話鋒一轉，揭露真正讓運勢變好的秘密，不是靠神明保佑，而是「每個月固定捐款」與「控制情緒」。不亂投資、多做善事，才是破解水逆的終極心法！",outline:"起：(剛需切入 - 犯太歲的焦慮)\n屬馬的（或當年生肖）注意！今年犯太歲，一定要跟我來！\n\n承：(知識輸出 - 燈種大補帖)\n做生意的點『財神燈』，求姻緣點『月老燈』，家裡有長輩的記得點『藥師佛』保健康。\n\n轉：(觀念昇華 - 真正的改運術)\n但老實說，點燈是求心安。真正改運，我給自己兩個功課。\n第一，不亂投資、不亂花錢（畫面：把想買的褲子放回去）。運氣不好時保守一點。\n第二，每個月固定捐款。特別是捐給小朋友或動物，因為他們無法選擇自己的命運。\n\n合：(金句總結 - 善的循環)\n記住，幫助別人就是在幫自己積陰德。\n常做善事的朋友，運氣通常都不會太差",key_points:"實用指南：快速科普各種燈的用途。\n\n上班族/出入平安：關聖帝君燈。\n做生意/業務：財神燈。\n老人家/生病：藥師佛燈。\n求姻緣/好人緣：月老燈。\n真實人設：展現設計師「屬馬」（或其他生肖）的真實焦慮，以及被朋友吐槽「褲子拿了又放回去」（為了守財不亂花錢）的可愛一面。\n改運心法：提出「幫助別人就是在幫自己積陰德」的觀點。強調捐款給「無法選擇出身的小朋友或動物」，觀點溫暖且具說服力。\n情緒管理：點出運氣不好的時候，更要「冷靜」，不要用情緒處理事情，這才是職場與人生的真理",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0075",video_id:"",project_id:"V-C025-01",category:"觀念",sub_category:"領導",title:"35歲當高管？全靠「不求人」心法一路開掛！",summary:"為什麼她才 35 歲就能帶領公司從小變大？影片直擊年輕高管的各種「硬核」管理哲學。打破老闆只要出錢的迷思，她堅持「求人不如求己」，不管是包材設計、定價還是社群行銷，老闆不用親自做，但一定要「懂」，否則無法溝通，更不知道錢花得對不對。這是給所有想創業或當主管的人，最真實的震撼教育。",outline:"起：(破題 - 年輕高管的秘密)\n35 歲就能做到這個位置，你到底憑什麼？\n多做跟多看。公司從小變大，每一個環節我都要經歷過\n\n承：(核心觀念 - 不被呼弄的底氣)\n我給自己的功課是：『求別人不如自己會』\n你不用全部自己做，但你要『懂』。如果你不懂那 20%，你要怎麼跟員工溝通？怎麼知道廠商幫你花的錢對不對？\n\n轉：(實戰舉例 - 創業的現實)\n包材設計、打樣、價格組合...這些都是環環相扣的\n很多人覺得開店很簡單，兩三百萬加盟就有。但要活下來、要待人接物、要控管流程，這才是難的地方。\n\n合：(金句與呼籲 - 感性收尾)\n所以我很感謝我的夥伴。沒有人成功是靠自己一個人的。\n正在創業的你，覺得最重要的是什麼？底下留言告訴我！」",key_points:"職場心法：核心觀念是「求人不如自己會」。你不用做到 100 分，但你要懂基本邏輯，才能判斷員工或廠商做得對不對 。\n\n\n機會法則：機會不會給不努力的人。你能抓住機會，是因為你當下是「最適合的人」，而這來自於平時的累積 。\n實戰細節：創業不是只有做業績，還包括**「包材設計、打樣、價格組合、流程控管」。如果這些都不懂，花錢也只是像開飲料店加盟一樣，很容易倒閉 。\n團隊感恩：成功不是靠一個人，要懂得感謝身邊的夥伴。一個人走得快，一群人走得遠 。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"阿甫"},
+    {script_id:"A0076",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"創業",title:"不在黃金地段？也能業績翻3倍！",summary:"誰說開店一定要搶黃金店面？這家美髮店選在非鬧區，卻成功讓業績翻倍成長。老闆揭秘選址邏輯：路寬好停車、租金成本轉嫁到空間美學（大量綠植吸收藥水味），創造出讓客人與員工都舒適的高級感。證明了只要創造價值，地點不是絕對。",outline:"起：(質疑與現狀)\n這裡這麼偏僻，開店會有生意嗎？\n很多人都這樣問。當初夥伴也很掙扎，殊不知我們來這裡，業績翻了兩三倍！\n\n承：(選址邏輯)\n鬧區租金貴又難停車。這裡雖然不是市中心，但路寬、好停車，才是客人要的。\n把省下的錢拿來做裝潢。\n\n轉：(空間秘密 - 綠植)\n(畫面：店內滿滿的綠色植物，環境非常舒服)\n植物養了10年！不只是為了漂亮，它們能吸收美髮藥水的化學味。\n\n合：(總結與呼籲)\n開店不一定要搶黃金店面。創造出價值，客源自然會來。",key_points:"逆向選址：不迷信市中心鬧區，選擇「路寬、好停車」的區域，解決客人最痛的停車問題。\n空間美學：把店開在空屋，利用「大量綠植」（養了10年）打造森林系沙龍。植物不只美觀，還能吸收藥水化學味，提升環境舒適度。\n成果驗證：當初員工也質疑沒人，結果靠著環境與服務，業績翻了2-3倍，成功轉型為A級店。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"峻恩"},
+    {script_id:"A0077",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"創業",title:"買件風衣業績翻倍？突破低價思維！",summary:"技術好只是入場券，為什麼有些設計師收費高客人還搶著約？老闆分享親身經歷：曾經不敢收高價，直到去英國狠心買了件名牌風衣，才頓悟「價值」與「價格」的區別。影片點出設計師的通病：你自己沒花過那個錢，就不敢開那個價。",outline:"起：(痛點直擊)\n為什麼我技術這麼好，業績卻一直卡住上不去？\n老闆：「因為你不敢開價！問題不在技術，在你的思維。」\n\n承：(故事轉折 - 英國風衣)\n我以前也不敢。直到有次去英國，狠心花了幾萬塊買了一件精品風衣。\n那一刻我才懂：如果你自己沒花過那個錢，你根本不敢跟客人開那個價，因為你會心虛。\n\n轉：(價值 vs 價格)\n那次回來，我業績直接翻倍。因為我懂了，客人要的是『價值』不是價格。\n你把自己做得很廉價，客人當然只跟你談錢。你把價值做出來，價格就不是問題。\n\n合：(給新人的建議)\n前幾年先把錢投資在腦袋和技術。等你底氣夠了，再去體驗高品質的生活，你的身價自然會跟著漲。",key_points:"競爭現狀：現在設計師技術都很平均，技術好是基本門檻，決勝點在於「客情與信任」\n思維突破：為什麼不敢收高價？因為你自己沒花過。老闆分享去英國買精品風衣的體驗，打破了自己的金錢觀，回來後業績翻倍。\n核心觀念：客人要的是價值不是價格。當你把自己（和服務）的價值做出來，價格就不是問題。\n給年輕人的建議：前期先投資腦袋（課程/技術），等有能力了再去體驗生活（精品/旅遊），提升自己的眼界。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:"峻恩"},
+    {script_id:"A0078",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"領導",title:"單親媽媽這樣教！親子關係更親近",summary:"身為單親媽媽，面對孩子不在身邊的教養難題，她選擇用「愛」與「裝傻」來化解代溝。影片分享如何透過「請教手遊」、「IG互動」等方式，從嚴厲的母親轉變為孩子的朋友，甚至運用這套邏輯來管理店內的年輕員工。",outline:"起：(單親痛點)\n單親媽媽，小孩沒住一起，會不會感情不好？\n雖然我是單親，但我從沒缺席過他們的成長。\n\n承：(教育轉變 - 從打罵到朋友)\n小時候我會打，但打完一定講道理。現在長大了，我學著跟他們當朋友。\n像兒子愛玩手遊，我就裝傻叫他教我。他在我面前有成就感，我們話題就多了。\n\n轉：(獨特相處 - IG與年輕人)\n他甚至願意讓我追蹤 IG，我還會去留言互動，不像一般家長只會潛水。\n我把這套用在店裡，先愛別人的小孩（助理），你才懂怎麼跟自己的小孩相處。\n\n合：(呼籲互動)\n試著當孩子的玩伴吧。",key_points:"打破單親迷思：單親不代表缺愛或叛逆。只要觀念正確，單親小孩內心更堅強、更有想法（兒子反而會糾正同學抽菸）。\n反向教育法：不當碎碎唸的媽媽，學會「裝傻」。請兒子教自己玩手遊，讓孩子有成就感，話題自然變多。\nIG管理術：不當潛水監控的家長，而是成為會「按讚留言」的朋友。讓孩子願意開放社群給你看，就是信任的證明。\n職場應用：把店裡的年輕助理當成別人的心肝寶貝來愛，學會跟他們相處，就能搞定自己的小孩",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0079",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"個人成長",title:"你最愛的3個人？",summary:"這是一支直擊靈魂的提問影片。透過「最愛的三個人」心理測驗，點出都會女性/媽媽們常常忽略自己、燃燒殆盡（Burnout）的現狀。設計師分享自己如何透過「打扮」、「吸貓」、「放空」來愛自己，傳遞「先照顧好自己，才有能力愛別人」的正能量價值觀。",outline:"起：(靈魂拷問)\n給你5秒鐘，想一下你今年最愛的三個人。\n你有想到你自己嗎？\n\n承：(觀念翻轉)\n身為單親媽媽，我發現最該先愛的是自己。這不是自私，因為只有我把自己照顧好了，才有能量給孩子更好的生活。\n\n轉：(愛自己的方式)\n愛自己很簡單，把自己打扮漂亮、或是像我一樣當個電視兒童放空、回家吸貓。\n只要能讓你心裡放鬆，就是在愛自己。\n\n合：(感性呼籲)\n別在忙碌中迷失了。親愛的，記得多愛自己一點。\n歡迎來找我，我們邊做頭髮邊聊心事。",key_points:"心理測驗開頭：用「5秒鐘想出最愛的人」，強迫觀眾思考，最後揭曉答案（自己），反差感強。\n核心價值：愛自己不是自私。把自己照顧好（無論是心理還是外表），才有高品質的能量去照顧家人與客人。\n具體作法：愛自己不一定要花大錢，可以是打扮漂亮（職業需求）、看電視放空（情緒抽離）、或是吸貓（療癒），找到讓心裡舒服的方式最重要。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0080",video_id:"",project_id:"V-C011-02",category:"技術",sub_category:"燙髮",title:"5分鐘刷頭！慢了頭髮會爆",summary:"受損髮想燙直，怕燙完爆掉？資深設計師揭秘高階技術：針對常染髮的受損髮質，不使用傳統「軟化」破壞結構，改用「還原」方式操作。影片更公開美髮界實話：頭髮是死掉的細胞，壞到一定程度護髮也沒用，只能剪掉！",outline:"起：(技術懸念)\n(畫面：設計師快速刷藥水)\n這是在做縮毛矯正（燙直）嗎？\n妳常染髮髮質受損，我們改用『還原』的方式，才不會二次傷害。\n\n承：(護髮實話)\n頭髮是死掉的。護髮是維持，不是起死回生。\n如果壞到一定程度，做護髮進去100%流失80%，那是沒效的，只能剪掉。\n\n轉：(職人絕活 - 快手與細節)\n受損髮上藥水要快！我練到5分鐘刷完整顆頭，慢了頭髮就會爆掉。\n還有這個小撇步：『墊髮根』。這樣藥水不貼頭皮，燙完才不會死板扁塌。\n\n合：(成果與呼籲)\n受損髮也能燙出好髮質，技術跟速度缺一不可。\n你的頭髮也受損不敢燙嗎？",key_points:"技術差異：一般縮毛矯正用「軟化」（打亂結構），但針對受損髮（如兩個月染一次的頭髮），改用「還原」方式，能保留彈性、不傷髮質。\n護髮真相：頭髮是死掉的組織。護髮是「預防」，如果髮質已經爛掉（進去100%流失80%），做護髮也無效，只能剪掉。\n手速關鍵：受損髮上藥水是在跟時間賽跑，慢了頭髮就會「爆掉」。設計師練就5分鐘刷完整顆頭的快手絕活。\n細節處理：燙縮毛怕頭頂扁塌？秘密武器是「墊髮根」（用捲子墊著），藥水不沾頭皮且燙完自然蓬鬆。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0081",video_id:"",project_id:"V-C011-02",category:"日常",sub_category:"美食",title:"虎尾在地人美食！5間沒吃必後悔",summary:"設計師以在地人身份，推薦3家觀光客可能路過錯過，但在地人超愛的隱藏名單：沒招牌的「兩撇」、炭火烤的「鴨蛋糕」、還有滷味超強的麵店。",outline:"起：(開場)\n虎尾在地人都吃什麼？」\n保證不踩雷！\n\n承：(店家點名)\n第一家『炭烤鴨蛋糕』，用鴨蛋做的，炭香味超濃！」\n第二家隱藏版『兩撇爌肉飯』，沒招牌，想吃要碰運氣。」\n第三家『無名大胖麵店』，它的滷味跟滷蛋是靈魂，必點！」\n第四家「三輪車日式燒肉」虎尾傳奇店，從小餐車開到大店面，在地人看著它長大，丼飯燒烤都推。\n第五家「日式涮涮鍋」吧台式服務，老闆幫忙送餐，適合下班只想張嘴的懶人。\n\n轉：(認證)\n這些都是我從小吃到大的口袋名單。\n\n合：(呼籲)\n設計師：「做完頭髮去吃剛剛好。」",key_points:"炭烤鴨蛋糕：虎尾特色，用鴨蛋做且用炭火烤，香氣十足。\n兩撇爌肉飯：隱藏版無招牌，店面暗暗的但生意超好。\n無名大胖麵店：滷蛋一顆20元但非常入味，在地人激推。\n「第一銀行」門口旁邊蚵仔煎：強調用「豬油」下去煎，香氣逼人\n「三輪車日式燒肉」虎尾傳奇店，從小餐車開到大店面，在地人看著它長大，丼飯燒烤都推。\n「日式涮涮鍋」吧台式服務，老闆幫忙送餐，適合下班只想張嘴的懶人。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0082",video_id:"",project_id:"V-C011-02",category:"技術",sub_category:"剪髮",title:"剪劉海像狗啃？原來分區錯了",summary:"為什麼自己剪劉海總是變呆瓜頭？設計師指出兩大關鍵錯誤：拿剪紙的剪刀、分區分太寬。影片教學正確的「黃金三角分區法」，讓你剪出韓系空氣感，而不是厚重妹妹頭。",outline:"起：(痛點直擊)\n自己修劉海？分區最重要。\n\n承：(黃金三角教學)\n只要抓頭頂一個小三角形就好，寬度千萬不要超過眉毛的一半。\n分太寬，你的臉就會看起來超大！\n剪的時候不要貼著額頭，往上拉 45度角。\n這樣剪下來，髮尾才會有自然的層次，不會像被狗啃。\n\n轉：(下刀技巧)\n對角線剪法：修兩側時，把頭髮拉到反方向（左邊拉到右邊剪），剪刀拿斜的滑剪，自然修飾臉型。\n設計師：「剪刀拿斜的，由上往下 1、2、3 滑剪。」\n\n合：(呼籲)\n設計師：「學會這招，劉海過渡期也能自己救！」",key_points:"工具警告：千萬別拿剪紙的剪刀（會鈍、會卡），去美材行買一把專用的。\n黃金三角：劉海分區千萬不能超過眉毛的一半，只要抓一個小小的三角形就好，不然會顯臉大。\n角度關鍵：拉出 45度角 剪，髮尾才會有自然的層次，不會死板。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0083",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"保養",title:"細菌會在你的頭皮上大便",summary:"網傳「清水洗頭」比較健康？設計師打破迷思！影片揭露頭皮如果不乾淨，細菌（如蟎蟲）會吃你的油脂，然後在你的頭皮上「大便」。清水洗不掉油脂，長期下來會導致發炎掉髮。",outline:"起：(噁心鉤子)\n如果你只用清水洗頭，細菌正在你的頭皮上大便！\n\n承：(原理科普)\n網路上說清水洗頭很健康？\n臉沒有毛可以用清水，但頭皮有頭髮蓋著，油垢根本沖不掉。\n台灣這麼潮濕，頭皮直接變成細菌培養皿。\n\n轉：(掉髮危機)\n油脂堆積久了，毛囊發炎，最後就是掉頭髮。\n真的懶得洗，偶爾用乾洗髮擋一下可以，但頭皮一定要保持乾燥。\n\n合：(呼籲)",key_points:"噁心真相：頭皮上的細菌/蟎蟲以油脂為食，吃完會排泄（大便），這些髒東西清水洗不掉。\n油水不互溶：臉可以用清水洗是因為沒有毛髮遮擋，但頭皮有頭髮且油脂多，光靠水無法清潔油垢。\n後果嚴重：油脂堆積 + 細菌排泄物 = 發炎、癢、掉髮。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""},
+    {script_id:"A0084",video_id:"",project_id:"V-C011-02",category:"觀念",sub_category:"個人成長",title:"寫目標沒用？原來你的能量在嘴巴",summary:"為什麼別人寫手帳許願很靈，你寫了卻沒感覺？設計師分享「彩虹數字」觀點：每個人的能量中心不同。她算出自己是靠「嘴巴」顯化的，改用「講的」跟宇宙下訂單後，業績直接起飛",outline:"起：(痛點直擊)\n(畫面：設計師把筆和筆記本丟旁邊)\n我不會這樣\n「彩虹數字』，發現我的能量中心在嘴巴，不是手。\n\n承：(彩虹數字解密)\n我用寫的根本沒感覺，我靠『講的』跟宇宙下訂單。\n自從我開始每天把目標唸出來，業績真的比較容易達標！\n\n轉：(改變後的成果)\n每個人適合的方法不同，你要找到你的能量開關。\n要設定『短程目標』。先求生存、再求發展，一步一步來。\n\n合：(呼籲)",key_points:"個人差異：目標不一定要用寫的！彩虹數字分析顯示，有些人的能量在手（適合寫），有些人在嘴巴（適合說）。\n實證經驗：主角以前用寫的都沒效，發現自己能量在嘴巴後，改用「說出來」的方式，業績達成率變超高。\n執行方法：不用紙筆，每天對著鏡子或宇宙大聲說出目標，頻率對了才有效。",shoot_req:"",copywriting:"",external_link:"",confirmed:true,editor:""}
+  ],
+  interactions:[
+    {id:"INT-20260122-1",date:"2026-01-22",project_id:"V-C025-01",client_code:"C025",channel:"Line",key_points:"內容覺得不ok，想要讓人更認識他",signal:"積極",next_step:"修改腳本"},
+    {id:"INT-20260129-1",date:"2026-01-29",project_id:"V-C018-01",client_code:"C018",channel:"Line",key_points:"提供主題腳本內容方向",signal:"沒反應",next_step:"待確認"},
+    {id:"INT-20260130-1",date:"2026-01-30",project_id:"V-C011-02",client_code:"C011",channel:"電話",key_points:"想要再把兩支改成現場客人操作1燙髮1補染",signal:"積極",next_step:"拍攝"},
+    {id:"INT-20260306-1",date:"2026-03-06",project_id:"V-C001-04",client_code:"C001",channel:"Line",key_points:"提供拍攝腳本",signal:"熱情",next_step:"拍攝"},
+    {id:"INT-20260309-1",date:"2026-03-09",project_id:"V-C001-04",client_code:"C001",channel:"Line",key_points:"提醒第3期付款及更新匯款帳號",signal:"一般",next_step:"待確認"}
+  ],
+  payments:[
+    {payment_id:"PAY-202507-001",project_id:"V-C001-01",client_code:"C001",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-07-07",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202507-002",project_id:"V-C002-01",client_code:"C002",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-07-29",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202507-003",project_id:"V-C005-01",client_code:"C005",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-07-26",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202507-004",project_id:"V-C008-01",client_code:"C008",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-07-29",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202508-001",project_id:"V-C003-01",client_code:"C003",amount:5250,status:"已付款",due_date:"2026-01-01",paid_date:"2025-08-11",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202508-002",project_id:"V-C004-01",client_code:"C004",amount:5250,status:"已付款",due_date:"2026-01-01",paid_date:"2025-08-26",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202508-003",project_id:"V-C006-01",client_code:"C006",amount:5250,status:"已付款",due_date:"2026-01-01",paid_date:"2025-08-12",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202508-004",project_id:"V-C007-01",client_code:"C007",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-08-21",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202509-001",project_id:"V-C009-01",client_code:"C009",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-09-03",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202509-002",project_id:"V-C010-01",client_code:"C010",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-09-08",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202509-003",project_id:"V-C011-01",client_code:"C011",amount:16000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-09-12",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202509-004",project_id:"V-C012-01",client_code:"C012",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2025-09-11",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202509-005",project_id:"V-C018-01",client_code:"C018",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-09-25",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202511-001",project_id:"",client_code:"C001",amount:21000,status:"已付款",due_date:"",paid_date:"2025-11-02",notes:"",period_num:3,period_total:3},
+    {payment_id:"PAY-202511-002",project_id:"V-C014-01",client_code:"C014",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-11-19",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202511-003",project_id:"V-C015-01",client_code:"C015",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-11-21",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202511-004",project_id:"V-C024-01",client_code:"C024",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-11-24",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202512-001",project_id:"V-C013-01",client_code:"C013",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-12-05",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202512-002",project_id:"V-C027-01",client_code:"C027",amount:16000,status:"已付款",due_date:"2026-01-01",paid_date:"2025-12-25",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202512-003",project_id:"V-C011-02",client_code:"C011",amount:34000,status:"已付款",due_date:"",paid_date:"2025-12-16",notes:"",period_num:2,period_total:12},
+    {payment_id:"PAY-202601-005",project_id:"V-C008-02",client_code:"C008",amount:31200,status:"已付款",due_date:"",paid_date:"2026-01-06",notes:"會再增加",period_num:2,period_total:12},
+    {payment_id:"PAY-202601-001",project_id:"V-C020-01",client_code:"C020",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-01-22",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202601-002",project_id:"V-C021-01",client_code:"C021",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-01-22",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202601-003",project_id:"V-C022-01",client_code:"C022",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-01-22",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202604-005",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-03-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202601-006",project_id:"",client_code:"C028",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-01-09",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202601-007",project_id:"",client_code:"C025",amount:13000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-02-04",notes:"會再增加",period_num:null,period_total:null},
+    {payment_id:"PAY-202602-001",project_id:"",client_code:"C030",amount:1000,status:"已付款",due_date:"",paid_date:"2026-02-10",notes:"不用開發票，阿姨要轉帳出去展榮",period_num:3,period_total:26},
+    {payment_id:"PAY-202602-002",project_id:"",client_code:"C032",amount:1000,status:"已付款",due_date:"",paid_date:"2026-02-07",notes:"不用開發票，阿姨要轉帳出去展榮",period_num:3,period_total:26},
+    {payment_id:"PAY-202603-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-03-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202603-003",project_id:"",client_code:"C031",amount:10000,status:"待付款",due_date:"2026-01-01",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202603-004",project_id:"",client_code:"C001",amount:10500,status:"已付款",due_date:"2026-01-01",paid_date:"2026-03-12",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202603-005",project_id:"",client_code:"C035",amount:600,status:"已付款",due_date:"2026-01-01",paid_date:"2026-03-03",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202603-006",project_id:"",client_code:"C031",amount:10000,status:"已付款",due_date:"2026-01-01",paid_date:"2026-03-09",notes:"三聯的打統編 隱寓有限公司 60490688",period_num:null,period_total:null},
+    {payment_id:"PAY-202603-007",project_id:"",client_code:"C033",amount:28000,status:"待付款",due_date:"",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202604-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-04-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202604-003",project_id:"V-C003-02",client_code:"C003",amount:15000,status:"已付款",due_date:"2026-01-02",paid_date:"2025-08-11",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202604-004",project_id:"V-C023-01",client_code:"C023",amount:13000,status:"待付款",due_date:"2026-01-01",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202605-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-05-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202605-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-05-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202606-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-06-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202606-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-06-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202607-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-07-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202607-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-07-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202608-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-08-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202608-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-08-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202609-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-09-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202609-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-09-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202610-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-10-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202610-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-10-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202611-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-11-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202611-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-11-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202612-002",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-12-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202612-001",project_id:"V-C011-02",client_code:"C011",amount:17000,status:"待付款",due_date:"2026-12-12",paid_date:"",notes:"",period_num:null,period_total:null},
+    {payment_id:"PAY-202701-001",project_id:"V-C008-02",client_code:"C008",amount:13000,status:"待付款",due_date:"2026-04-12",paid_date:"",notes:"",period_num:null,period_total:null}
+  ]
+};
+
+// ══ STORAGE ═══════════════════════════════════════════════════════
+const SK='vidpro_v3';let DB={};let saveTimer=null;
+function loadDB(){try{const r=localStorage.getItem(SK);DB=r?JSON.parse(r):JSON.parse(JSON.stringify(INIT));}catch(e){DB=JSON.parse(JSON.stringify(INIT));}if(!localStorage.getItem(SK))saveDB(true);}
+function saveDB(silent=false){
+  clearTimeout(saveTimer);
+  const dot=$('save-dot'),txt=$('save-txt');
+  if(dot){dot.className='save-dot dirty';txt.textContent='儲存中…';}
+  saveTimer=setTimeout(()=>{
+    try{localStorage.setItem(SK,JSON.stringify(DB));if(dot){dot.className='save-dot ok';txt.textContent='已儲存 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}}
+    catch(e){if(txt)txt.textContent='儲存失敗';}
+    if(!silent)toast('已儲存');
+  },600);
+}
+
+// ══ UTILS ═════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const fd=d=>d?d.replace(/(\d{4})-(\d{2})-(\d{2}).*/,'$1.$2.$3'):'—';
+const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const uid=()=>Math.random().toString(36).slice(2,9);
+const clientName=code=>DB.clients.find(c=>c.code===code)?.name||code||'—';
+
+const STAGES=['洽談中','已簽約','企劃中','已排程','製作中','審核中','已交付','已結案'];
+const VSTATUS=['素材整理','待剪輯','剪輯中','審核中','已交付','已歸檔'];
+const TITLES={dashboard:'專案總覽',production:'製作追蹤',clients:'客戶 CRM',scripts:'腳本庫',payments:'金流管理 ↗',schedule:'拍攝行程'};
+const SUBS={dashboard:'PROJECT OVERVIEW',production:'PRODUCTION TRACKING',clients:'CLIENT CRM',scripts:'SCRIPT LIBRARY',payments:'PAYMENT MANAGEMENT',schedule:'SHOOT SCHEDULE'};
+
+function sb(cls,txt){return txt?`<span class="badge ${cls}">${txt}</span>`:'—';}
+function stageBadge(s){return s?`<span class="badge st-${s}">${s}</span>`:'—';}
+function payBadge(p){return p?`<span class="badge pay-${p}">${p}</span>`:'—';}
+function vsBadge(s){return s?`<span class="badge vs-${s}">${s}</span>`:'—';}
+
+let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='';
+
+function toast(m,d=1800){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+
+// ══ NAV ═══════════════════════════════════════════════════════════
+function go(n){
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(ni=>ni.classList.remove('active'));
+  $('module-'+n).classList.add('active');
+  const order=['dashboard','production','clients','scripts','payments','schedule'];
+  const idx=order.indexOf(n);if(idx>=0)document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  $('pt').textContent=TITLES[n]||n;$('ps').textContent=SUBS[n]||'';
+  if(n==='production')rProd();
+  if(n==='payments')rPay();
+  if(n==='schedule'){switchSchView(schView);}
+  if(n==='production')populateEditorFilter();
+}
+
+function doSearch(v){
+  q=v.toLowerCase();
+  $('search-clear').className='search-clear'+(q?' show':'');
+  rD();rProd();rC();rS();
+}
+function clearSearch(){$('qs').value='';doSearch('');}
+function pf(sel,btn,cb){document.querySelectorAll(sel+' .pill').forEach(b=>b.classList.remove('active'));btn.classList.add('active');cb();}
+function fD(v,b){fDv=v;pf('#f-d',b,rD);}
+function fProd(v,b){fProdv=v;pf('#f-prod',b,rProd);}
+function fC(v,b){fCv=v;pf('#f-c',b,rC);}
+function fS(v,b){fSv=v;pf('#f-s',b,rS);}
+function fPay(v,b){fPayv=v;pf('#f-pay',b,rPay);}
+
+// ══ INLINE EDIT ═══════════════════════════════════════════════════
+function editField(col,id,field,el){
+  el.contentEditable='true';el.focus();
+  const sel=window.getSelection(),rng=document.createRange();
+  rng.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rng);
+  const key=col==='videos'?'video_id':col==='scripts'?'script_id':col==='payments'?'payment_id':'id';
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();const item=DB[col].find(x=>x[key]===id);if(item&&item[field]!==v){item[field]=v;saveDB();}};
+  el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}if(ev.key==='Escape')el.contentEditable='false';};
+}
+function changeVStatus(vid,sel,pid,ccode){
+  const v=DB.videos.find(x=>x.video_id===vid);
+  if(!v) return;
+  v.status=sel.value;
+  if(sel.value==='已交付'&&!v.done_date){
+    v.done_date=new Date().toISOString().split('T')[0];
+    const row=sel.closest('tr');
+    if(row){const dc=row.querySelector('.done-date-cell');if(dc)dc.textContent=v.done_date;}
+  }
+  applyVSel(sel);
+  saveDB();
+  updateCounts();
+  updateProjProgress(pid);
+}
+
+function updateProjProgress(pid){
+  if(!pid) return;
+  const pvids=DB.videos.filter(v=>v.project_id===pid);
+  const pdone=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+  const ppct=pvids.length?Math.round(pdone/pvids.length*100):0;
+  const pclr=ppct>=80?'#4a9e4a':ppct>=40?'#d4a000':'#c45000';
+  const prid='pr-'+pid.replace(/[^a-z0-9]/gi,'_');
+  const projRow=document.getElementById(prid);
+  if(!projRow) return;
+  const fill=projRow.querySelector('.ph-bar-fill');
+  if(fill){fill.style.width=ppct+'%';fill.style.background=pclr;}
+  const pct=projRow.querySelector('.ph-pct');
+  if(pct){pct.textContent=pdone+'/'+pvids.length+' 支';pct.style.color=pclr;}
+}
+function applyVSel(sel){
+  const cls={已歸檔:'vs-已歸檔',已交付:'vs-已交付',剪輯中:'vs-剪輯中',審核中:'vs-審核中',待剪輯:'vs-待剪輯',素材整理:'vs-素材整理'};
+  sel.className='status-sel '+(cls[sel.value]||'');
+}
+function changeProjStage(pid,sel){
+  const p=DB.projects.find(x=>x.id===pid);if(p){p.stage=sel.value;saveDB();updateCounts();rD();}
+}
+function changeProjPay(pid,sel){
+  const p=DB.projects.find(x=>x.id===pid);if(p){p.payment=sel.value;saveDB();updateCounts();rD();}
+}
+function saveProjField(pid,field,el){
+  const p=DB.projects.find(x=>x.id===pid);if(p&&p[field]!==el.value){p[field]=el.value;saveDB();if(field==='next_action')rD();}
+}
+function saveVideoNote(vid,el){const v=DB.videos.find(x=>x.video_id===vid);if(v&&v.notes!==el.value){v.notes=el.value;saveDB();}}
+function editBriefLink(pid,el){
+  el.contentEditable='true';const p=DB.projects.find(x=>x.id===pid);el.textContent=p?.brief_link||'';el.focus();
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.brief_link=v;saveDB();rProd();}};
+  el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}};
+}
+function editDeliveryLink(pid,el){
+  el.contentEditable='true';const p=DB.projects.find(x=>x.id===pid);el.textContent=p?.delivery_link||'';el.focus();
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.delivery_link=v;saveDB();rProd();}};
+  el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}};
+}
+function toggleConfirm(sid){
+  const s=DB.scripts.find(x=>x.script_id===sid);if(s){s.confirmed=!s.confirmed;saveDB();rS();}
+}
+function deleteVideo(vid){if(!confirm('確定刪除這支影片？'))return;DB.videos=DB.videos.filter(x=>x.video_id!==vid);saveDB();rProd();updateCounts();toast('已刪除影片');}
+function deleteProject(pid){if(!confirm('確定刪除這個專案？影片紀錄也會一併刪除。'))return;DB.projects=DB.projects.filter(x=>x.id!==pid);DB.videos=DB.videos.filter(x=>x.project_id!==pid);saveDB();rD();rProd();updateCounts();toast('已刪除專案');}
+function deleteInteraction(iid){DB.interactions=DB.interactions.filter(x=>x.id!==iid);saveDB();rD();rC();toast('已刪除');}
+
+// ══ DASHBOARD ═════════════════════════════════════════════════════
+function rD(){
+  let ps=DB.projects.filter(p=>p.id&&(fDv==='all'||p.stage===fDv));
+  if(q)ps=ps.filter(p=>(clientName(p.client_code)||'').toLowerCase().includes(q)||p.id.toLowerCase().includes(q));
+
+  $('tb-d').innerHTML=ps.map(p=>{
+    const stOpts=STAGES.map(o=>`<option${o===p.stage?' selected':''}>${o}</option>`).join('');
+    const pyOpts=['已付款','待付款'].map(o=>`<option${o===p.payment?' selected':''}>${o}</option>`).join('');
+    const pvids=DB.videos.filter(v=>v.project_id===p.id);
+    const pdone=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+    const ptotal=pvids.length||parseInt(p.video_count)||0;
+    const ppct=ptotal?Math.round(pdone/ptotal*100):0;
+    const pclr=ppct>=80?'#4a9e4a':ppct>=40?'#d4a000':'#c45000';
+    return `<tr style="cursor:pointer" onclick="jumpToProject('${p.id}','${p.client_code}')">
+      <td><div class="cm">${e(clientName(p.client_code))}</div><div class="cs">${p.id} · 第${p.period||'?'}期</div></td>
+      <td class="editable-cell" onclick="event.stopPropagation()"><select class="edit-sel" onchange="changeProjStage('${p.id}',this)">${stOpts}</select></td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;gap:7px;min-width:100px">
+          <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${ppct}%;background:${pclr};border-radius:3px;transition:width .4s"></div>
+          </div>
+          <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${ptotal}</span>
+        </div>
+        ${pvids.length===0&&p.video_count?`<div style="font-family:var(--mono);font-size:9px;color:var(--ink3);margin-top:2px">預計 ${p.video_count} 支</div>`:''}
+      </td>
+      <td><span style="font-family:var(--mono);font-size:12px">${fd(p.shoot_date)}</span></td>
+      <td class="editable-cell" onclick="event.stopPropagation()">
+        <span class="editable" onclick="editField('projects','${p.id}','est_delivery',this)" style="font-family:var(--mono);font-size:12px;color:${getDeliveryColor(p)}">${fd(p.est_delivery||calcDeliveryDate(p.shoot_date))}<span class="edit-hint">✎</span></span>
+        ${isEarlyDelivery(p)?'<span style="font-size:9px;color:var(--ink3);display:block;font-family:var(--mono)">最早 '+fd(calcDeliveryDate(p.shoot_date))+'</span>':''}
+      </td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${p.period||'—'}</span></td>
+      <td class="editable-cell" onclick="event.stopPropagation()"><select class="edit-sel" onchange="changeProjPay('${p.id}',this)">${pyOpts}</select></td>
+      <td onclick="event.stopPropagation()">${p.delivery_link?`<a href="${p.delivery_link}" target="_blank" class="icon-btn" style="font-size:11px">交付清單</a>`:''}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="8" class="empty-state">無符合條件的專案</td></tr>`;
+
+  // Next actions
+  const acts=DB.projects.filter(p=>p.next_action&&p.next_action.trim()).slice(0,3);
+  $('nxt-actions').innerHTML=acts.length
+    ?`<div class="panel"><div class="panel-head"><span class="phl">待辦</span></div>${acts.map(p=>`<div class="panel-row"><div class="dot-live"></div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--G)">${e(clientName(p.client_code))}</div><div class="nxt-tag" style="margin-top:3px">→ ${e(p.next_action)}</div></div></div>`).join('')}</div>`
+    :'<div style="font-size:13px;color:var(--ink3)">目前無待辦行動 ✓</div>';
+
+  // Interactions
+  const ints=[...DB.interactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  $('dash-ints').innerHTML=ints.map(i=>`
+    <div class="panel-row" style="background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+      <div style="min-width:70px"><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${fd(i.date)}</div><div style="font-size:10px;color:var(--Gm);font-weight:700;margin-top:1px">${i.channel}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:var(--G)">${e(clientName(i.client_code))}</div><div style="font-size:12px;color:var(--ink2)">${e(i.key_points)}</div>${i.next_step?`<div style="font-size:11px;color:var(--warn);font-weight:700;margin-top:2px">→ ${e(i.next_step)}</div>`:''}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="sig sig-${i.signal}">${i.signal}</span><button class="icon-btn danger" style="font-size:10px;padding:2px 6px" onclick="deleteInteraction('${i.id}')">刪</button></div>
+    </div>`).join('')||'<div style="font-size:13px;color:var(--ink3)">尚無互動紀錄</div>';
+}
+
+// ══ PRODUCTION ════════════════════════════════════════════════════
+function rProd(){
+  let projs=DB.projects.filter(p=>p.id);
+  if(fProdv==='進行中')projs=projs.filter(p=>!['已交付','已結案'].includes(p.stage));
+  if(fProdv==='已完成')projs=projs.filter(p=>p.stage==='已交付');
+  if(q)projs=projs.filter(p=>(clientName(p.client_code)||'').toLowerCase().includes(q));
+  // Editor filter: only show projects that have videos assigned to this editor
+  if(fEditor){
+    projs=projs.filter(p=>DB.videos.some(v=>v.project_id===p.id&&v.editor===fEditor));
+  }
+
+  // Group by client_code
+  const map={};
+  projs.forEach(p=>{if(!map[p.client_code])map[p.client_code]={code:p.client_code,projects:[]};map[p.client_code].projects.push(p);});
+  const groups=Object.values(map);
+
+  if(!groups.length){$('prod-list').innerHTML='<div class="empty-state">無符合條件的客戶</div>';return;}
+
+  $('prod-list').innerHTML=groups.map(g=>{
+    const allVids=DB.videos.filter(v=>g.projects.some(p=>p.id===v.project_id));
+    const doneVids=allVids.filter(v=>['已交付','已歸檔'].includes(v.status));
+    const stages=[...new Set(g.projects.map(p=>p.stage))];
+    const pendPay=g.projects.filter(p=>p.payment==='待付款').length;
+    const cid='cr-'+g.code;
+
+    const projRows=g.projects.map(p=>{
+      const pvids=DB.videos.filter(v=>v.project_id===p.id&&(!fEditor||v.editor===fEditor));
+      const pdone=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+      const ppct=pvids.length?Math.round(pdone/pvids.length*100):0;
+      const pclr=ppct>=80?'#4a9e4a':ppct>=40?'#d4a000':'#c45000';
+      const stOpts=STAGES.map(o=>`<option${o===p.stage?' selected':''}>${o}</option>`).join('');
+      const pyOpts=['已付款','待付款'].map(o=>`<option${o===p.payment?' selected':''}>${o}</option>`).join('');
+      const pid='pr-'+p.id.replace(/[^a-z0-9]/gi,'_');
+
+      const videoRows=pvids.map((v,i)=>{
+        const cls={已歸檔:'vs-已歸檔',已交付:'vs-已交付',剪輯中:'vs-剪輯中',審核中:'vs-審核中',待剪輯:'vs-待剪輯',素材整理:'vs-素材整理'}[v.status]||'';
+        const opts=VSTATUS.map(o=>`<option${o===v.status?' selected':''}>${o}</option>`).join('');
+        // Find matching script
+        // Find by video_id first, fallback to project+title match
+        const scr=DB.scripts.find(s=>s.video_id===v.video_id) || DB.scripts.find(s=>s.project_id===p.id&&s.title===v.title);
+        return `<tr>
+          <td><span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">EP${String(i+1).padStart(2,'0')}</span></td>
+          <td><div class="vt-title" title="${e(v.title)}">${e(v.title)}</div><div class="vt-code">${v.video_id}</div></td>
+          <td style="background:#faf8ff;max-width:160px">
+            ${scr
+              ?`<div onclick="showScriptPopup(event,'${scr.script_id}')" style="cursor:pointer;padding:3px 6px;border-radius:5px;transition:background .12s" onmouseover="this.style.background='#eeecff'" onmouseout="this.style.background='transparent'">
+                  <div style="font-size:11px;font-weight:600;color:#5b4ab0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:148px">${e(scr.title)}</div>
+                  <div style="font-size:10px;color:var(--ink3);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:148px;margin-top:1px">${e(scr.summary)}</div>
+                  <div style="font-size:9px;color:#7c5abf;margin-top:2px;font-family:var(--mono)">點擊查看 ↗</div>
+                </div>`
+              :`<span style="font-size:11px;color:var(--ink3)">—</span>`
+            }
+          </td>
+          <td class="ec"><select class="status-sel ${cls}" onchange="changeVStatus('${v.video_id}',this,'${p.id}','${p.client_code}')" onclick="event.stopPropagation()">${opts}</select></td>
+          <td class="ec"><span class="editable" onclick="editField('videos','${v.video_id}','editor',this)" style="font-size:12px;font-weight:700;color:var(--Gm)">${e(v.editor)||'—'}<span class="edit-hint">✎</span></span></td>
+          <td><span class="done-date-cell" style="font-family:var(--mono);font-size:11px;color:${v.done_date?'var(--Gm)':'var(--ink3)'}">${v.done_date||'—'}</span></td>
+          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','footage_link',this)" title="${e(v.footage_link)}">${v.footage_link?`<a href="${v.footage_link}" target="_blank" style="font-size:11px;font-weight:700;color:var(--blue);text-decoration:none">▷ 素材</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
+          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','final_link',this)" title="${e(v.final_link)}">${v.final_link?`<a href="${v.final_link}" target="_blank" style="font-size:11px;font-weight:700;color:var(--Gm);text-decoration:none">▷ 完成檔</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
+          <td class="ec" style="max-width:120px" onclick="event.stopPropagation()">
+            <div onclick="showNotePopup('${v.video_id}')" style="cursor:pointer;padding:3px 6px;border-radius:5px;min-height:28px;transition:background .12s;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='var(--bluebg)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:11px;color:${v.notes?'var(--ink2)':'var(--ink3)'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100px">${v.notes?e(v.notes):'＋ 新增備註'}</span>
+              <span style="font-size:9px;color:var(--blue);font-family:var(--mono);flex-shrink:0;opacity:0.7">${v.notes?'✎':''}</span>
+            </div>
+          </td>
+          <td class="ec"><span class="editable" onclick="editField('videos','${v.video_id}','views',this)" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--Gm)">${e(v.views)||'—'}<span class="edit-hint">✎</span></span></td>
+          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','publish_link',this)" title="${e(v.publish_link)}">${v.publish_link?`<a href="${v.publish_link}" target="_blank" style="font-size:11px;font-weight:700;color:var(--G);text-decoration:none">▷ 發布</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
+          <td><button class="icon-btn danger" style="padding:2px 6px;font-size:10px" onclick="deleteVideo('${v.video_id}')">刪</button></td>
+        </tr>`;
+      }).join('');
+
+      return `<div class="proj-row" id="${pid}">
+        <div class="proj-header" onclick="toggleProj('${pid}')">
+          <div class="ph-left">
+            <span class="ph-chevron">›</span>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--G)">${p.id}</span>
+                <span style="font-size:11px;color:var(--ink3)">第 ${p.period||'?'} 期</span>
+                <span class="badge st-${p.stage}" style="font-size:10px">${p.stage}</span>
+                <span class="badge pay-${p.payment}" style="font-size:10px">${p.payment}</span>
+              </div>
+              ${pvids.length?`<div style="display:flex;align-items:center;gap:7px;margin-top:5px;min-width:160px">
+                <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                  <div style="height:100%;width:${ppct}%;background:${pclr};border-radius:2px;transition:width .4s"></div>
+                </div>
+                <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${pvids.length} 支</span>
+              </div>`:'<div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:4px">尚無影片紀錄</div>'}
+            </div>
+          </div>
+          <div class="ph-right">
+            <span style="font-size:11px;color:var(--ink3)">拍攝：<strong style="color:var(--ink)">${fd(p.shoot_date)||'未排定'}</strong></span>
+          </div>
+        </div>
+        <div class="video-panel">
+          <div class="proj-fields">
+            <div class="pf-row"><span class="pf-lbl">備　註</span><textarea class="pf-inp" rows="1" placeholder="專案備註…" onblur="saveProjField('${p.id}','notes',this)">${e(p.notes)}</textarea></div>
+            <div class="pf-row"><span class="pf-lbl">交付</span>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                ${p.delivery_link?`<a class="dl-btn" href="${p.delivery_link}" target="_blank">▷ 交付清單</a><span class="editable" onclick="editDeliveryLink('${p.id}',this)" style="font-size:11px;color:var(--ink3)">編輯 ✎</span>`:`<span class="editable" onclick="editDeliveryLink('${p.id}',this)" style="font-size:12px;color:var(--ink3)">＋ 舊交付連結 ✎</span>`}
+                <button class="icon-btn" onclick="event.stopPropagation();copyClientLink('${p.id}','${p.client_code}')" style="font-size:11px;white-space:nowrap">🔗 複製客戶連結</button>
+              </div>
+            </div>
+            <div class="pf-row"><span class="pf-lbl">腳本</span>${p.brief_link?`<a class="dl-btn" href="${p.brief_link}" target="_blank">▷ 原始腳本</a><span class="editable" onclick="editBriefLink('${p.id}',this)" style="font-size:11px;color:var(--ink3);margin-left:8px">編輯 ✎</span>`:`<span class="editable" onclick="editBriefLink('${p.id}',this)" style="font-size:12px;color:var(--ink3)">＋ 貼上腳本連結 ✎</span>`}</div>
+          </div>
+          ${pvids.length?`<div style="overflow-x:auto"><table class="vt">
+            <thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead>
+            <tbody>${videoRows}</tbody></table></div>`:`<div style="padding:12px 18px 12px 44px;color:var(--ink3);font-size:12px">尚無影片紀錄</div>`}
+          <div class="vp-add">
+            <button class="add-btn" onclick="openAddVideo('${p.id}')">＋ 新增影片</button>
+            <button class="icon-btn danger" style="font-size:11px;margin-left:8px" onclick="deleteProject('${p.id}')">刪除專案</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="client-row" id="${cid}">
+      <div class="client-header" onclick="toggleClient('${cid}')">
+        <div class="ch-left">
+          <span class="ch-chevron">›</span>
+          <div>
+            <div class="ch-name">${e(clientName(g.code))}</div>
+            <div class="ch-sub">${g.code} · ${g.projects.length} 個專案 · ${allVids.length} 支影片${pendPay?` · <span style="color:var(--warn);font-weight:700">${pendPay} 筆待收款</span>`:''}</div>
+          </div>
+        </div>
+        <div class="ch-right">${stages.map(s=>stageBadge(s)).join('')}</div>
+      </div>
+      <div class="proj-list-inner">${projRows}</div>
+    </div>`;
+  }).join('');
+}
+
+
+
+// ── 工作天計算（排除六日）──────────────────────
+
+function getDeliveryColor(p){
+  const today=new Date().toISOString().split('T')[0];
+  const delivery=p.est_delivery||calcDeliveryDate(p.shoot_date);
+  if(!delivery||p.stage==='已交付'||p.stage==='已結案') return 'var(--ink3)';
+  if(delivery<today) return 'var(--warn)'; // 逾期
+  const soon=new Date();soon.setDate(soon.getDate()+14);
+  const soonStr=soon.toISOString().split('T')[0];
+  if(delivery<=soonStr) return '#8a5000'; // 14天內
+  return 'var(--Gm)';
+}
+
+function isEarlyDelivery(p){
+  // Show "最早" label only if est_delivery was manually set earlier than auto-calc
+  if(!p.est_delivery||!p.shoot_date) return false;
+  const auto=calcDeliveryDate(p.shoot_date);
+  return auto && p.est_delivery<auto;
+}
+
+// 2026 台灣國定假日（行政院人事行政總處公告）— 每年更新一次
+const TW_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-02',
+  '2026-02-16','2026-02-17','2026-02-18','2026-02-19',
+  '2026-02-20','2026-02-23','2026-02-24','2026-02-25','2026-02-28',
+  '2026-04-03','2026-04-04','2026-04-05',
+  '2026-05-01',
+  '2026-06-19',
+  '2026-09-24',
+  '2026-10-09','2026-10-10'
+]);
+
+function addWorkdays(dateStr, days){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  let added = 0;
+  while(added < days){
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    const iso = d.toISOString().split('T')[0];
+    if(dow !== 0 && dow !== 6 && !TW_HOLIDAYS.has(iso)) added++;
+  }
+  return d.toISOString().split('T')[0];
+}
+
+function calcDeliveryDate(shootDate){
+  return addWorkdays(shootDate, 30);
+}
+
+
+
+
+
+// ── 新增影片時選腳本 → 自動帶入標題和影片編號 ──────────────────
+function onVideoScriptChange(){
+  const sid = $('nv-script').value;
+  if(!sid){ return; }
+  const s = DB.scripts.find(x=>x.script_id===sid);
+  if(!s) return;
+  // Auto-fill title
+  if(s.title) $('nv-title').value = s.title;
+  // Auto-fill video_id if script has one
+  if(s.video_id) $('nv-vid').value = s.video_id;
+}
+
+// ── Script modal cascade: client → project → video ──────────────
+// onScriptClientChange removed
+
+// onScriptProjChange removed
+
+// onScriptVidChange removed
+
+
+// ── Script cart ─────────────────────────────────────────────────
+let cartItems = new Set();
+
+function onCartCheck(sid, cb){
+  if(cb.checked){ cartItems.add(sid); document.getElementById('sr-'+sid.replace(/[^a-z0-9]/gi,'_')).classList.add('selected'); }
+  else { cartItems.delete(sid); document.getElementById('sr-'+sid.replace(/[^a-z0-9]/gi,'_')).classList.remove('selected'); }
+  updateCartBar();
+}
+
+function updateCartBar(){
+  const bar=$('cart-bar');
+  const cnt=$('cart-count');
+  if(cartItems.size===0){ bar.classList.add('empty'); return; }
+  bar.classList.remove('empty');
+  cnt.textContent=cartItems.size+' 個腳本已選';
+  // Populate client dropdown
+  const cc=$('cart-client');
+  if(cc.options.length<=1){
+    cc.innerHTML='<option value="">選擇客戶…</option>'+
+      DB.clients.filter(c=>c.status==='合作中').map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
+  }
+}
+
+function onCartClientChange(){
+  const code=$('cart-client').value;
+  const projSel=$('cart-proj');
+  projSel.innerHTML='<option value="">選擇專案…</option>';
+  if(!code) return;
+  const projs=DB.projects.filter(p=>p.client_code===code&&!['已結案','已交付'].includes(p.stage));
+  projSel.innerHTML='<option value="">選擇專案…</option>'+
+    projs.map(p=>`<option value="${p.id}">${p.id}（第${p.period||'?'}期・${p.stage}）</option>`).join('');
+}
+
+function addCartToProject(){
+  const pid=$('cart-proj').value;
+  if(!pid){alert('請選擇專案');return;}
+  if(cartItems.size===0){alert('請先勾選腳本');return;}
+  const proj=DB.projects.find(x=>x.id===pid);
+  if(!proj) return;
+
+  let added=0;
+  cartItems.forEach(sid=>{
+    const s=DB.scripts.find(x=>x.script_id===sid);
+    if(!s) return;
+    // Generate video_id
+    const existVids=DB.videos.filter(v=>v.project_id===pid);
+    const num=String(existVids.length+1+added).padStart(2,'0');
+    const newVid=pid+'-V'+num;
+    // Create video record
+    DB.videos.push({
+      video_id:newVid,project_id:pid,
+      title:s.title,status:'待剪輯',
+      editor:'',done_date:'',footage_link:'',
+      final_link:'',publish_link:'',views:'',notes:''
+    });
+    // Link script
+    s.video_id=newVid;
+    s.project_id=pid;
+    added++;
+  });
+
+  saveDB();
+  clearCart();
+  rProd();
+  updateCounts();
+  toast(`已將 ${added} 支腳本放入 ${proj.id}，影片紀錄已建立`);
+  // Jump to production
+  setTimeout(()=>{
+    go('production');
+    const cid='cr-'+proj.client_code;
+    setTimeout(()=>{
+      const cr=$(cid);if(cr&&!cr.classList.contains('open'))toggleClient(cid);
+      setTimeout(()=>{
+        const prid='pr-'+pid.replace(/[^a-z0-9]/gi,'_');
+        const pr=$(prid);if(pr&&!pr.classList.contains('open'))toggleProj(prid);
+      },180);
+    },80);
+  },300);
+}
+
+function clearCart(){
+  cartItems.forEach(sid=>{
+    const el=document.getElementById('chk-'+sid.replace(/[^a-z0-9]/gi,'_'));
+    if(el)el.checked=false;
+    const row=document.getElementById('sr-'+sid.replace(/[^a-z0-9]/gi,'_'));
+    if(row)row.classList.remove('selected');
+  });
+  cartItems.clear();
+  $('cart-bar').classList.add('empty');
+  $('cart-client').innerHTML='<option value="">選擇客戶…</option>';
+  $('cart-proj').innerHTML='<option value="">選擇專案…</option>';
+}
+
+// ── Video note popup ────────────────────────────────────────────
+let noteCurrentVid = null;
+
+function showNotePopup(vid){
+  const v = DB.videos.find(x=>x.video_id===vid);
+  if(!v) return;
+  noteCurrentVid = vid;
+  $('note-vid-id').value = vid;
+  $('note-vid-label').textContent = vid;
+  $('note-title-label').textContent = v.title || '影片備註';
+  $('note-content').value = v.notes || '';
+  openModal('modal-note');
+  setTimeout(()=>$('note-content').focus(), 100);
+}
+
+function saveAndCloseNote(){
+  if(!noteCurrentVid) return;
+  const v = DB.videos.find(x=>x.video_id===noteCurrentVid);
+  if(v){
+    v.notes = $('note-content').value;
+    saveDB();
+    const openClients=[...document.querySelectorAll('.client-row.open')].map(el=>el.id);
+    const openProjs=[...document.querySelectorAll('.proj-row.open')].map(el=>el.id);
+    rProd();
+    setTimeout(()=>{
+      openClients.forEach(id=>{const el=$(id);if(el&&!el.classList.contains('open'))toggleClient(id);});
+      setTimeout(()=>{openProjs.forEach(id=>{const el=$(id);if(el&&!el.classList.contains('open'))toggleProj(id);});},60);
+    },50);
+  }
+  closeModal('modal-note');
+  noteCurrentVid = null;
+}
+
+// ── Script popup ───────────────────────────────────────────────
+let currentScriptId = null;
+
+function showScriptPopup(ev, sid){
+  ev.stopPropagation();
+  const s = DB.scripts.find(x=>x.script_id===sid);
+
+  // nl2br: handle both real newlines and literal \n sequences
+  const nl2br = t => t
+    ? String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+               .replace(/\\\\n/g,'<br>').replace(/\n/g,'<br>')
+    : '';
+
+  const fill = (id, val) => {
+    const el = $(id);
+    if(!el) return;
+    el.innerHTML = val ? nl2br(val) : '<span style="color:var(--ink3);font-style:italic">尚無資料</span>';
+  };
+
+  if(!s){
+    // No script found — show empty template
+    $('sv-id').textContent = '—';
+    $('sv-title').textContent = '此影片尚未建立腳本';
+    $('sv-tags').innerHTML = '';
+    ['sv-summary','sv-outline','sv-keypoints','sv-notes-script','sv-extlink'].forEach(id=>{
+      const el=$(id);
+      if(el) el.innerHTML='<span style="color:var(--ink3);font-style:italic">尚無資料</span>';
+    });
+    $('sv-confirm').innerHTML = '';
+    openModal('modal-script-view');
+    return;
+  }
+
+  $('sv-id').textContent = s.script_id || '—';
+  $('sv-title').textContent = s.title || '—';
+
+  // Tags
+  const tags = [];
+  if(s.category) tags.push(`<span class="cat-chip cat-${s.category}">${s.category}</span>`);
+  if(s.sub_category) tags.push(`<span style="font-family:var(--mono);font-size:10px;color:var(--ink3);padding:2px 7px;background:var(--Gw);border-radius:3px;border:1px solid var(--border)">${s.sub_category}</span>`);
+  $('sv-tags').innerHTML = tags.join('');
+
+  fill('sv-summary', s.summary);
+  fill('sv-outline', s.outline);
+  fill('sv-keypoints', s.key_points);
+  fill('sv-notes-script', s.editor_note || s.notes_script || '');
+  fill('sv-extlink', s.external_link
+    ? `<a href="${s.external_link}" target="_blank" style="color:var(--blue);font-weight:600;text-decoration:none">▷ ${s.external_link}</a>`
+    : '');
+
+  $('sv-confirm').innerHTML = s.confirmed
+    ? '<span style="background:var(--Gp);color:var(--G);font-size:12px;font-weight:700;padding:4px 12px;border-radius:5px">✓ 客戶已確認</span>'
+    : '<span style="background:#f0f0f0;color:var(--ink3);font-size:12px;font-weight:700;padding:4px 12px;border-radius:5px">待客戶確認</span>';
+
+  openModal('modal-script-view');
+}
+
+function goToScript(){
+  closeModal('modal-script-view');
+  go('scripts');
+}
+
+// ── Jump from dashboard project row to production ──────────────
+function jumpToProject(pid, client_code){
+  go('production');
+  // After render, open client then project
+  setTimeout(()=>{
+    const cid='cr-'+client_code;
+    const cr=$(cid);
+    if(cr&&!cr.classList.contains('open'))toggleClient(cid);
+    setTimeout(()=>{
+      const prid='pr-'+pid.replace(/[^a-z0-9]/gi,'_');
+      const pr=$(prid);
+      if(pr&&!pr.classList.contains('open'))toggleProj(prid);
+    },180);
+  },80);
+}
+
+function toggleClient(cid){const r=$(cid);r.classList.toggle('open');}
+function toggleProj(pid){
+  const r=$(pid);r.classList.toggle('open');
+  if(r.classList.contains('open')){r.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+
+// ══ CLIENTS ═══════════════════════════════════════════════════════
+function rC(){
+  let cs=DB.clients;
+  if(fCv!=='all')cs=cs.filter(c=>c.status===fCv);
+  if(q)cs=cs.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q));
+  // Sort by latest interaction date, then by latest project shoot_date
+  cs=[...cs].sort((a,b)=>{
+    const lastInt=code=>DB.interactions.filter(i=>i.client_code===code).map(i=>i.date).sort().pop()||'';
+    const lastProj=code=>DB.projects.filter(p=>p.client_code===code).map(p=>p.shoot_date||'').sort().pop()||'';
+    const aDate=lastInt(a.code)||lastProj(a.code);
+    const bDate=lastInt(b.code)||lastProj(b.code);
+    return bDate.localeCompare(aDate);
+  });
+
+  $('cg').innerHTML=cs.map(c=>{
+    const collab=DB.projects.filter(p=>p.client_code===c.code&&p.stage!=='洽談中').length;
+    const cInts=DB.interactions.filter(i=>i.client_code===c.code).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+    return `<div class="ccard">
+      <div class="ccard-strip cs-${c.status}-strip"></div>
+      <div class="ccard-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div><div class="cn">${e(c.name)}</div><div class="cc">${c.code} · ${c.title||'—'}</div></div>
+          <span class="badge cs-${c.status}">${c.status}</span>
+        </div>
+        <div class="ccard-meta">
+          <div><div class="ml">聯絡人</div><div class="mv">${c.contact||'—'}</div></div>
+          <div><div class="ml">合作次數</div><div class="mv">${collab} 次</div></div>
+          <div style="grid-column:1/-1"><div class="ml">社群</div><div class="mv" style="font-size:12px;color:var(--Gm)">@${c.social||'—'}</div></div>
+        </div>
+        ${c.notes?`<div class="ccard-note">${e(c.notes)}</div>`:''}
+        ${cInts.length?`<div class="ccard-ints"><div class="ci-label">最近互動</div>${cInts.map(i=>`<div class="ci-row"><span class="ci-date">${fd(i.date)}</span><span class="ci-text">${e(i.key_points)}</span><span class="sig sig-${i.signal}">${i.signal}</span></div>`).join('')}</div>`:''}
+        <div class="ccard-actions">
+          <button class="icon-btn" style="font-size:11px;flex:1;justify-content:center" onclick="openEditClient('${c.code}')">✎ 編輯</button>
+          <button class="icon-btn" style="font-size:11px;flex:1;justify-content:center" onclick="prefillInteraction('${c.code}');openModal('modal-int')">＋ 互動</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty-state">無符合條件的客戶</div>';
+}
+
+function openEditClient(code){
+  const c=DB.clients.find(x=>x.code===code);if(!c)return;
+  $('ec-code').value=c.code;$('ec-name').value=c.name;$('ec-contact').value=c.contact||'';
+  $('ec-title').value=c.title||'';$('ec-social').value=c.social||'';
+  $('ec-status').value=c.status||'合作中';$('ec-notes').value=c.notes||'';
+  openModal('modal-edit-client');
+}
+function saveEditClient(){
+  const code=$('ec-code').value;const c=DB.clients.find(x=>x.code===code);if(!c)return;
+  c.name=$('ec-name').value.trim();c.contact=$('ec-contact').value.trim();
+  c.title=$('ec-title').value.trim();c.social=$('ec-social').value.trim();
+  c.status=$('ec-status').value;c.notes=$('ec-notes').value.trim();
+  saveDB();closeModal('modal-edit-client');rC();toast('客戶資料已更新');
+}
+function prefillInteraction(code){
+  $('ni-date').value=new Date().toISOString().split('T')[0];
+  // Set client then trigger cascade
+  const niClient=$('ni-client');
+  if(niClient)niClient.value=code;
+}
+
+// ══ SCRIPTS ═══════════════════════════════════════════════════════
+function rS(){
+  let ss=DB.scripts;
+  if(fSv==='未確認')ss=ss.filter(s=>!s.confirmed);
+  else if(fSv!=='all')ss=ss.filter(s=>s.category===s.category&&s.category===fSv);
+  if(fSv==='未確認')ss=DB.scripts.filter(s=>!s.confirmed);
+  else if(fSv!=='all')ss=DB.scripts.filter(s=>s.category===fSv);
+  if(q)ss=ss.filter(s=>(s.title||'').toLowerCase().includes(q));
+
+  $('tb-s').innerHTML=ss.map(s=>{
+    const proj=DB.projects.find(p=>p.id===s.project_id);
+    const cname=proj?clientName(proj.client_code):'—';
+    const sid=s.script_id.replace(/[^a-z0-9]/gi,'_');
+    return `<tr class="scr-row" id="sr-${sid}" onclick="toggleScriptRow('${sid}')">
+      <td style="width:36px;padding:0 8px" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" class="scr-checkbox" id="chk-${sid}" onchange="onCartCheck('${s.script_id}',this)">
+          <span class="scr-chevron">›</span>
+        </div>
+      </td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${s.script_id}</span></td>
+      <td><div class="cm" style="max-width:180px">${e(s.title)}</div><div class="cs">${s.video_id||'—'}</div></td>
+      <td><div style="font-size:12px;font-weight:600">${e(cname)}</div><div class="cs">${s.project_id||'—'}</div></td>
+      <td><span class="cat-chip cat-${s.category}">${s.category}</span>${s.sub_category?`<span style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:5px">${s.sub_category}</span>`:''}</td>
+      <td><div style="font-size:12px;color:var(--ink2);max-width:160px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${e(s.summary)}</div></td>
+      <td onclick="event.stopPropagation()"><button class="confirm-btn ${s.confirmed?'yes':'no'}" onclick="toggleConfirm('${s.script_id}')">${s.confirmed?'✓ 確認':'待確認'}</button></td>
+      <td class="editable-cell" onclick="event.stopPropagation()"><span class="editable" onclick="editField('scripts','${s.script_id}','editor',this)" style="font-size:12px;font-weight:700;color:var(--Gm)">${e(s.editor)||'—'}<span class="edit-hint">✎</span></span></td>
+    </tr>
+    <tr class="scr-detail" id="sd-${sid}"><td colspan="8">
+      <div class="scr-detail-inner">
+
+        <div class="scr-field full">
+          <div class="scr-field-label">影片標題 ✎</div>
+          <textarea class="scr-edit-area" onblur="saveScriptField('${s.script_id}','title',this)" rows="1">${e(s.title)}</textarea>
+        </div>
+
+        <div class="scr-field full">
+          <div class="scr-field-label">簡述 ✎</div>
+          <textarea class="scr-edit-area" onblur="saveScriptField('${s.script_id}','summary',this)" rows="2">${e(s.summary)}</textarea>
+        </div>
+
+        <div class="scr-field full">
+          <div class="scr-field-label">腳本大綱 ✎</div>
+          <textarea class="scr-edit-area" onblur="saveScriptField('${s.script_id}','outline',this)" rows="6" style="font-size:12px;line-height:1.8">${e(s.outline||'').replace(/\\\\n/g,'\\n')}</textarea>
+        </div>
+
+        <div class="scr-field full">
+          <div class="scr-field-label">重點乾貨 ✎</div>
+          <textarea class="scr-edit-area" onblur="saveScriptField('${s.script_id}','key_points',this)" rows="4" style="font-size:12px;line-height:1.8">${e(s.key_points||'').replace(/\\\\n/g,'\\n')}</textarea>
+        </div>
+
+        <div class="scr-field">
+          <div class="scr-field-label">拍攝需求 ✎</div>
+          <textarea class="scr-edit-area" onblur="saveScriptField('${s.script_id}','shoot_req',this)" rows="2">${e(s.shoot_req)}</textarea>
+        </div>
+
+        <div class="scr-field">
+          <div class="scr-field-label">外部連結 ✎</div>
+          <input class="scr-edit-input" type="url" value="${e(s.external_link)}" onblur="saveScriptField('${s.script_id}','external_link',this)" placeholder="https://…">
+          ${s.external_link?`<a href="${s.external_link}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;margin-top:4px">▷ 開啟連結</a>`:''}
+        </div>
+
+        <div class="scr-field full" style="border-top:1px solid rgba(180,160,230,.2);padding-top:12px;margin-top:4px;flex-direction:row;align-items:center;justify-content:flex-end;gap:8px">
+          <button class="icon-btn" onclick="event.stopPropagation();duplicateScript('${s.script_id}')" style="font-size:12px">⧉ 複製此腳本</button>
+          <button class="icon-btn danger" onclick="event.stopPropagation();deleteScript('${s.script_id}')" style="font-size:12px">刪除</button>
+        </div>
+
+      </div>
+    </td></tr>`;
+  }).join('')||'<tr><td colspan="8" class="empty-state">無符合條件的腳本</td></tr>';
+}
+
+function toggleScriptRow(sid){
+  const row=document.getElementById('sr-'+sid);
+  if(row) row.classList.toggle('open');
+}
+
+function duplicateScript(sid){
+  const s=DB.scripts.find(x=>x.script_id===sid);
+  if(!s) return;
+  // A0002 → A0002-01, A0002-01 → A0002-02
+  const baseId=sid.includes('-')?sid.replace(/-\d+$/,''):sid;
+  const existing=DB.scripts
+    .filter(x=>x.script_id===baseId||x.script_id.startsWith(baseId+'-'))
+    .map(x=>{const m=x.script_id.match(/-(\d+)$/);return m?parseInt(m[1]):0;});
+  const nextNum=(Math.max(0,...existing)+1).toString().padStart(2,'0');
+  const newId=baseId+'-'+nextNum;
+  const newScript={
+    ...s,
+    script_id:newId,
+    video_id:'',       // clear — needs to be reassigned
+    project_id:'',     // clear — needs to be reassigned
+    confirmed:false,   // reset confirmation
+  };
+  DB.scripts.push(newScript);
+  saveDB();
+  rS();
+  updateCounts();
+  toast('腳本已複製為 '+newId+'，請重新指定客戶和影片');
+  // Auto-open the new row
+  setTimeout(()=>{
+    const newSid=newId.replace(/[^a-z0-9]/gi,'_');
+    const row=document.getElementById('sr-'+newSid);
+    if(row&&!row.classList.contains('open')) toggleScriptRow(newSid);
+    if(row) row.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },100);
+}
+
+function deleteScript(sid){
+  if(!confirm('確定刪除這個腳本？')) return;
+  DB.scripts=DB.scripts.filter(x=>x.script_id!==sid);
+  saveDB();
+  rS();
+  updateCounts();
+  toast('腳本已刪除');
+}
+
+function saveScriptField(sid, field, el){
+  const s=DB.scripts.find(x=>x.script_id===sid);
+  if(!s) return;
+  const val=el.value!==undefined?el.value:el.textContent;
+  // Store with \n for newlines
+  s[field]=val.replace(/\n/g,'\\n');
+  if(field==='title'||field==='summary') rS();
+  saveDB();
+  toast('已儲存');
+}
+
+// ══ PAYMENTS ══════════════════════════════════════════════════════
+function rPay(){
+  const today=new Date().toISOString().split('T')[0];
+  let pays=DB.payments;
+  if(fPayv==='待付款')pays=pays.filter(p=>p.status==='待付款');
+  if(fPayv==='已付款')pays=pays.filter(p=>p.status==='已付款');
+  if(fPayv==='逾期')pays=pays.filter(p=>p.status==='待付款'&&p.due_date&&p.due_date<today);
+
+  // Pay stats
+
+
+  (document.getElementById('pay-stats')||{innerHTML:''}).innerHTML=[
+    ['待收金額',`$${totalPending.toLocaleString()}`,'元','wc'],
+    ['逾期筆數',overdue,'筆',overdue>0?'wc':''],
+    ['本月已收',`$${paidThisMonth.toLocaleString()}`,'元',''],
+    ['累計已收',`$${totalPaid.toLocaleString()}`,'元',''],
+    ['付款紀錄',DB.payments.length,'筆','']
+  ].map(([l,n,d,c])=>`<div class="stat-cell ${c}"><div class="stat-lbl">${l}</div><div class="stat-num" style="font-size:22px">${n}</div><div class="stat-desc">${d}</div></div>`).join('');
+
+  (document.getElementById('pay-grid')||{innerHTML:''}).innerHTML=pays.sort((a,b)=>a.due_date.localeCompare(b.due_date)).map(p=>{
+    const isOverdue=p.status==='待付款'&&p.due_date&&p.due_date<today;
+    return `<div class="pay-card">
+      <div class="pay-card-head">
+        <div>
+          <div class="pay-id">${p.payment_id}</div>
+          <div class="pay-client">${e(clientName(p.client_code))}</div>
+          <div class="cs" style="margin-top:2px">${p.project_id}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+          ${payBadge(p.status)}
+          <span class="pay-type pt-${p.type}">${p.type}</span>
+        </div>
+      </div>
+      <div class="pay-card-body">
+        <div class="pay-row"><span class="pay-key">金額</span><span style="display:flex;align-items:baseline;gap:4px"><span class="pay-amount">$${(p.amount||0).toLocaleString()}</span></span></div>
+        <div class="pay-row"><span class="pay-key">應付日</span><span class="pay-val ${isOverdue?'pay-overdue':''}">${fd(p.due_date)}${isOverdue?' ⚠ 逾期':''}</span></div>
+        ${p.paid_date?`<div class="pay-row"><span class="pay-key">實付日</span><span class="pay-val">${fd(p.paid_date)}</span></div>`:''}
+        ${p.notes?`<div style="font-size:11px;color:var(--ink3);border-top:1px solid var(--border);padding-top:6px;margin-top:2px">${e(p.notes)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty-state">無符合條件的付款紀錄</div>';
+}
+
+// ══ COUNT & STATS ═════════════════════════════════════════════════
+function updateCounts(){
+  const today=new Date().toISOString().split('T')[0];
+  const active=DB.projects.filter(p=>p.id&&!['已結案','已交付'].includes(p.stage)).length;
+  const inProd=DB.projects.filter(p=>p.stage==='製作中').length;
+  const pending=0;
+  const collab=DB.clients.filter(c=>c.status==='合作中').length;
+  const overdue=DB.payments.filter(p=>p.status==='待付款'&&p.due_date&&p.due_date<today).length;
+
+  $('cnt-d').textContent=active;
+  $('cnt-p').textContent=inProd;
+  $('cnt-c').textContent=collab;
+  $('cnt-s').textContent=DB.scripts.length;
+  // (document.getElementById('cnt-pay')) removed — payments now external
+  const schCount=DB.projects.filter(p=>p.shoot_date&&p.shoot_date>=new Date().toISOString().split('T')[0]).length;
+  $('cnt-sch').textContent=schCount;
+  // cnt-pay removed (payments now external)
+
+  $('stats').innerHTML=[
+    {l:'進行中專案',n:active,d:`共 ${DB.projects.filter(p=>p.id).length} 個`,c:'',click:()=>go('dashboard')},
+    {l:'製作中',n:inProd,d:'影片製作中',c:inProd>0?'wc':'',click:()=>{go('production');fProd('進行中',document.querySelectorAll('#f-prod .pill')[1]);}},
+    {l:'帳務',n:'↗',d:'Google Sheets',c:'',click:()=>openSheetsLink()},
+    {l:'活躍客戶',n:collab,d:'合作中',c:'',click:()=>go('clients')},
+    {l:'腳本數',n:DB.scripts.length,d:'已建立',c:'',click:()=>go('scripts')}
+  ].map(s=>`<div class="stat-cell ${s.c}" onclick="(${s.click.toString()})()">
+    <div class="stat-lbl">${s.l}</div><div class="stat-num">${s.n}</div><div class="stat-desc">${s.d}</div>
+  </div>`).join('');
+}
+
+// ══ MODALS ════════════════════════════════════════════════════════
+
+function autoFillDelivery(){
+  const shoot=$('np-shoot').value;
+  if(shoot){
+    const d=calcDeliveryDate(shoot);
+    if(d)$('np-est-delivery').value=d;
+  }
+}
+
+function openModal(id){
+  if(!['modal-note','modal-script-view'].includes(id)){
+
+    const opts=DB.clients.map(c=>`<option value="${c.code}">${c.name}（${c.code}）</option>`).join('');
+    ['np-client-code','ni-client','np2-client'].forEach(sel=>{const el=$(sel);if(el){const cur=el.value;el.innerHTML='<option value="">選擇客戶…</option>'+opts;if(cur)el.value=cur;}});
+    const ns2c=$('ns2-client');if(ns2c)ns2c.onchange=()=>updateShootProjects(ns2c.value);
+  }
+  $(id).classList.add('open');
+}
+
+function closeModal(id){$(id).classList.remove('open');}
+function openAddVideo(pid){
+  $('nv-pid').value=pid;
+  const scripts=DB.scripts.filter(s=>!s.video_id||(s.project_id===pid));
+  const nvsEl=$('nv-script');
+  if(nvsEl){
+    nvsEl.innerHTML='<option value="">不連結腳本，手動填入</option>'+
+      scripts.map(s=>`<option value="${s.script_id}">${s.script_id} · ${s.title}</option>`).join('');
+  }
+  openModal('modal-video');
+}
+
+function saveNewProject(){
+  const cc=$('np-client-code').value;if(!cc){alert('請選擇客戶');return;}
+  const pid=$('np-id').value.trim()||'V-NEW-'+uid();
+  DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:$('np-notes').value.trim(),next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
+  saveDB();closeModal('modal-proj');rD();rProd();updateCounts();toast('專案已建立');
+  ['np-id','np-period','np-count','np-shoot','np-est-delivery','np-delivery','np-brief','np-notes','np-action'].forEach(f=>$(f).value='');
+  $('np-client-code').value='';
+}
+
+function saveNewVideo(){
+  if(!$('nv-title').value.trim()){alert('請填入影片標題');return;}
+  const pid=$('nv-pid').value;
+    const newVid=$('nv-vid').value.trim()||uid();
+  DB.videos.push({video_id:newVid,project_id:pid,title:$('nv-title').value.trim(),status:$('nv-status').value,editor:$('nv-editor').value.trim(),done_date:$('nv-done').value,footage_link:$('nv-footage').value.trim(),final_link:$('nv-final').value.trim(),publish_link:$('nv-link').value.trim(),views:$('nv-views').value.trim(),notes:$('nv-notes').value.trim()});
+  // Link script if selected
+  const selScript=$('nv-script').value;
+  if(selScript){
+    const s=DB.scripts.find(x=>x.script_id===selScript);
+    if(s){s.video_id=newVid;s.project_id=pid;}
+  }
+  saveDB();closeModal('modal-video');rProd();updateCounts();toast('影片已新增');
+  ['nv-vid','nv-title','nv-editor','nv-done','nv-footage','nv-final','nv-link','nv-views','nv-notes'].forEach(f=>$(f).value='');
+  const nvs=$('nv-script');if(nvs)nvs.selectedIndex=0;
+}
+
+function saveNewInteraction(){
+  const cc=$('ni-client').value;if(!cc){alert('請選擇客戶');return;}
+  if(!$('ni-text').value.trim()){alert('請填入對話重點');return;}
+  DB.interactions.push({id:'INT-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+uid(),date:$('ni-date').value,client_code:cc,channel:$('ni-ch').value,key_points:$('ni-text').value.trim(),signal:$('ni-sig').value,next_step:$('ni-next').value.trim()});
+  saveDB();closeModal('modal-int');rD();rC();toast('互動紀錄已儲存');
+  ['ni-text','ni-next'].forEach(f=>$(f).value='');
+}
+
+function saveNewClient(){
+  if(!$('nc-name').value.trim()){alert('請填入店家名稱');return;}
+  DB.clients.push({code:$('nc-code').value.trim()||'C'+uid(),name:$('nc-name').value.trim(),contact:$('nc-contact').value.trim(),title:$('nc-title').value.trim(),social:$('nc-social').value.trim(),status:$('nc-status').value,notes:$('nc-notes').value.trim()});
+  saveDB();closeModal('modal-client');rC();updateCounts();toast('客戶已建立');
+  ['nc-code','nc-name','nc-contact','nc-title','nc-social','nc-notes'].forEach(f=>$(f).value='');
+}
+
+function saveNewScript(){
+  if(!$('ns-title').value.trim()){alert('請填入標題');return;}
+  DB.scripts.push({script_id:$('ns-id').value.trim()||'A'+uid(),video_id:$('ns-vid').value.trim(),project_id:$('ns-pid').value.trim(),category:$('ns-cat').value,sub_category:$('ns-subcat').value.trim(),title:$('ns-title').value.trim(),summary:$('ns-summary').value.trim(),outline:$('ns-outline').value.trim(),key_points:$('ns-keypoints').value.trim(),shoot_req:$('ns-shootreq').value.trim(),copywriting:'',external_link:$('ns-extlink').value.trim(),confirmed:$('ns-confirmed').value==='true',editor:$('ns-editor').value.trim()});
+  saveDB();closeModal('modal-script');rS();updateCounts();toast('腳本已新增');
+  ['ns-id','ns-vid','ns-pid','ns-subcat','ns-title','ns-summary','ns-outline','ns-keypoints','ns-shootreq','ns-extlink','ns-editor'].forEach(f=>$(f).value='');
+
+}
+
+
+
+
+
+// ── Editor filter ───────────────────────────────────────────────
+function populateEditorFilter(){
+  const sel=$('editor-filter');
+  if(!sel) return;
+  const editors=[...new Set(DB.videos.filter(v=>v.editor).map(v=>v.editor))].sort();
+  const cur=sel.value;
+  sel.innerHTML='<option value="">所有剪輯師</option>'+
+    editors.map(ed=>`<option value="${ed}">${ed}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+
+function onEditorFilterChange(val){
+  fEditor=val;
+  const btn=$('copy-editor-link-btn');
+  if(btn) btn.style.display=val?'flex':'none';
+  rProd();
+}
+
+function copyEditorViewLink(){
+  if(!fEditor) return;
+  const base=window.location.href.split('?')[0];
+  const url=base+'?editor='+encodeURIComponent(fEditor);
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('已複製 '+fEditor+' 的專屬連結 🔗');
+  }).catch(()=>{
+    prompt('請手動複製此連結：', url);
+  });
+}
+
+
+// ── 複製客戶專屬連結 ────────────────────────────────────────────
+function copyClientLink(pid, clientCode){
+  const base = window.location.href.split('index.html')[0].split('?')[0];
+  const client = DB.clients.find(c=>c.code===clientCode);
+  const name = encodeURIComponent(client?.name||clientCode);
+  const url = base + 'client.html?project=' + encodeURIComponent(pid) + '&client=' + name;
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('已複製客戶專屬連結 🔗');
+  }).catch(()=>{
+    prompt('請手動複製此連結：', url);
+  });
+}
+
+// ── 複製剪輯師專屬連結 ──────────────────────────────────────────
+function copyEditorLink(editorName){
+  const base = window.location.href.replace(/index\.html.*$/, '').replace(/\?.*$/, '');
+  const url = base + 'editor.html?name=' + encodeURIComponent(editorName);
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('已複製 ' + editorName + ' 的專屬連結 🔗');
+  }).catch(()=>{
+    // Fallback for browsers that don't support clipboard API
+    prompt('請手動複製此連結：', url);
+  });
+}
+
+// ── 金流管理 → 直接開 Google Sheets ────────────────────────────
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/REPLACE_WITH_YOUR_SHEET_ID/edit';
+
+function openSheetsLink(){
+  window.open(SHEETS_URL, '_blank');
+}
+
+// ── Recurring payment plan ──────────────────────────────────────
+function openRecurringModal(){
+  const opts=DB.clients.map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
+  $('rc-client').innerHTML='<option value="">選擇客戶…</option>'+opts;
+  // Default prefix to current YYYYMM
+  const now=new Date();
+  $('rc-prefix').value='PAY-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0');
+  $('rc-start').value=now.toISOString().split('T')[0];
+  openModal('modal-recurring');
+}
+
+function saveRecurring(){
+  const cc=$('rc-client').value;
+  const pid=$('rc-pid').value.trim();
+  const amount=parseFloat($('rc-amount').value)||0;
+  const total=parseInt($('rc-total').value)||0;
+  const startDate=$('rc-start').value;
+  const interval=parseInt($('rc-interval').value)||1;
+  const prefix=$('rc-prefix').value.trim()||'PAY';
+  const type=$('rc-type').value;
+
+  if(!cc){alert('請選擇客戶');return;}
+  if(!total||total<1){alert('請填入期數');return;}
+  if(!startDate){alert('請填入第一期應付日');return;}
+
+  let added=0;
+  for(let i=0;i<total;i++){
+    const d=new Date(startDate);
+    d.setMonth(d.getMonth()+(i*interval));
+    const dueStr=d.toISOString().split('T')[0];
+    const yyyymm=dueStr.slice(0,7).replace('-','');
+    const seqNum=String(i+1).padStart(3,'0');
+    const payId=`${prefix}-${seqNum}`;
+    DB.payments.push({
+      payment_id:payId,
+      project_id:pid,
+      client_code:cc,
+      amount,type,
+      status:'待付款',
+      due_date:dueStr,
+      paid_date:'',
+      notes:'',
+      period_num:i+1,
+      period_total:total
+    });
+    added++;
+  }
+  saveDB();
+  closeModal('modal-recurring');
+  rPay();
+  updateCounts();
+  toast(`已產生 ${added} 筆定期付款紀錄`);
+  ['rc-pid','rc-amount','rc-total'].forEach(f=>$(f).value='');
+}
+
+function markPaid(paymentId){
+  const p=DB.payments.find(x=>x.payment_id===paymentId);
+  if(!p) return;
+  p.status='已付款';
+  p.paid_date=new Date().toISOString().split('T')[0];
+  saveDB();
+  rPay();
+  updateCounts();
+  toast('已標記為已付款');
+}
+
+function saveNewPayment(){
+  if(!$('np2-client').value){alert('請選擇客戶');return;}
+  if(!$('np2-id').value.trim()){alert('請填入付款編號');return;}
+  DB.payments.push({payment_id:$('np2-id').value.trim(),project_id:$('np2-pid').value.trim(),client_code:$('np2-client').value,amount:parseFloat($('np2-amount').value)||0,type:$('np2-type').value,status:$('np2-status').value,due_date:$('np2-due').value,paid_date:$('np2-paid').value,notes:$('np2-notes').value.trim()});
+  saveDB();closeModal('modal-pay');rPay();updateCounts();toast('付款紀錄已新增');
+  ['np2-id','np2-pid','np2-amount','np2-due','np2-paid','np2-notes'].forEach(f=>$(f).value='');
+  $('np2-client').value='';
+}
+
+
+// ══ SCHEDULE ══════════════════════════════════════════════════════
+
+const TW_HOL_NAMES = {
+  '2026-01-01':'元旦','2026-01-02':'元旦補假',
+  '2026-02-16':'除夕','2026-02-17':'春節','2026-02-18':'春節',
+  '2026-02-19':'春節','2026-02-20':'彈性放假','2026-02-23':'彈性放假',
+  '2026-02-24':'彈性放假','2026-02-25':'和平紀念日補假','2026-02-28':'和平紀念日',
+  '2026-04-03':'兒童節補假','2026-04-04':'兒童節','2026-04-05':'清明節補假',
+  '2026-05-01':'勞動節','2026-06-19':'端午節','2026-09-24':'中秋節',
+  '2026-10-09':'國慶日補假','2026-10-10':'國慶日'
+};
+
+let schView='year';
+let schYear=2026;
+let schMonth=3; // 0-based, 3 = April
+
+function switchSchView(v){
+  schView=v;
+  $('sv-year').classList.toggle('active',v==='year');
+  $('sv-month').classList.toggle('active',v==='month');
+  $('sch-year').style.display=v==='year'?'grid':'none';
+  $('sch-month').style.display=v==='month'?'block':'none';
+  $('month-nav').style.display=v==='month'?'flex':'none';
+  if(v==='year') rSchYear();
+  else rSchMonth();
+}
+
+function changeMonth(d){schMonth+=d;if(schMonth>11){schMonth=0;schYear++;}if(schMonth<0){schMonth=11;schYear--;}rSchMonth();}
+function goToday(){const n=new Date();schYear=n.getFullYear();schMonth=n.getMonth();rSchMonth();}
+
+// Build a map: date → [projects]
+function getShootMap(){
+  const map={};
+  DB.projects.forEach(p=>{
+    if(!p.shoot_date)return;
+    if(!map[p.shoot_date])map[p.shoot_date]=[];
+    map[p.shoot_date].push(p);
+  });
+  return map;
+}
+
+function rSchYear(){
+  const map=getShootMap();
+  const today=new Date().toISOString().split('T')[0];
+  let out='';
+  for(let m=0;m<12;m++){
+    const yr=schYear;
+    const firstDay=new Date(yr,m,1).getDay();
+    const daysInMonth=new Date(yr,m+1,0).getDate();
+
+    // Mini calendar grid
+    const dows=['日','一','二','三','四','五','六'];
+    let cells=dows.map(d=>`<div class="dow-lbl">${d}</div>`).join('');
+    for(let i=0;i<firstDay;i++) cells+=`<div class="mmd dim"></div>`;
+    for(let d=1;d<=daysInMonth;d++){
+      const iso=`${yr}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow=new Date(yr,m,d).getDay();
+      const isWk=dow===0||dow===6;
+      const isHol=TW_HOLIDAYS.has(iso);
+      const hasShoot=map[iso]&&map[iso].length>0;
+      const isToday=iso===today;
+      let cls='mmd';
+      if(isWk) cls+=' wk';
+      if(isHol) cls+=' hol';
+      if(hasShoot) cls+=' has';
+      if(isToday) cls+=' tod';
+      cells+=`<div class="${cls}" onclick="drillToMonth(${m},${d})" title="${hasShoot?map[iso].map(p=>clientName(p.client_code)).join('、'):''}">${d}</div>`;
+    }
+
+    // Monthly shoot list
+    const monthShoots=Object.entries(map)
+      .filter(([iso])=>iso.startsWith(`${yr}-${String(m+1).padStart(2,'0')}-`))
+      .sort(([a],[b])=>a.localeCompare(b));
+
+    const listHtml=monthShoots.length
+      ?monthShoots.map(([iso,projs])=>`
+        <div class="yr-list-row" onclick="drillToMonth(${m},parseInt('${iso.slice(8)}'))">
+          <span class="yr-list-date">${parseInt(iso.slice(8))}日</span>
+          <span class="yr-list-clients">${projs.map(p=>e(clientName(p.client_code))).join('、')}</span>
+        </div>`).join('')
+      :`<div class="yr-list-empty">本月無拍攝</div>`;
+
+    out+=`<div class="mini-cal">
+      <div class="mc-mini-head" onclick="drillToMonth(${m},0)">${yr} 年 ${m+1} 月</div>
+      <div class="mc-mini-grid">${cells}</div>
+      <div class="yr-list">${listHtml}</div>
+    </div>`;
+  }
+  $('sch-year').innerHTML=out;
+}
+
+function drillToMonth(m,d){
+  schMonth=m;
+  switchSchView('month');
+  // Scroll to specific day if needed
+}
+
+function rSchMonth(){
+  const map=getShootMap();
+  const today=new Date().toISOString().split('T')[0];
+  const yr=schYear; const mo=schMonth;
+  const firstDay=new Date(yr,mo,1).getDay();
+  const daysInMonth=new Date(yr,mo+1,0).getDate();
+  const prevDays=new Date(yr,mo,0).getDate();
+  const monthStr=`${yr} 年 ${mo+1} 月`;
+  $('month-label').textContent=monthStr;
+
+  const dows=['日','一','二','三','四','五','六'];
+  let cells='';
+
+  // Prev month filler
+  for(let i=firstDay-1;i>=0;i--){
+    const d=prevDays-i;
+    cells+=`<div class="mc-cell dim-cell"><div class="mc-cell-date">${d}</div></div>`;
+  }
+  // This month
+  for(let d=1;d<=daysInMonth;d++){
+    const iso=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=iso===today;
+    const isHol=TW_HOLIDAYS.has(iso);
+    const holName=TW_HOL_NAMES[iso]||'';
+    const dow=new Date(yr,mo,d).getDay();
+    const isWk=dow===0||dow===6;
+    let cls='mc-cell';
+    if(isToday)cls+=' today-cell';
+    else if(isHol)cls+=' hol-cell';
+
+    const shoots=(map[iso]||[]).map(p=>`
+      <div class="shoot-chip" onclick="event.stopPropagation();jumpToProject('${p.id}','${p.client_code}')">
+        ${e(clientName(p.client_code))}
+        <span class="sc-del" onclick="event.stopPropagation();deleteShootDate('${p.id}','${iso}')">×</span>
+      </div>`).join('');
+
+    cells+=`<div class="${cls}" onclick="prefillShootModal('${iso}')">
+      <div class="mc-cell-date">
+        <span style="color:${isWk?'var(--warn)':isToday?'var(--blue)':isHol?'var(--warn)':'var(--ink3)'}">${d}</span>
+        ${holName?`<span class="hol-name">${holName}</span>`:''}
+      </div>
+      ${shoots}
+      <span class="cell-add">＋</span>
+    </div>`;
+  }
+
+  // Next month filler
+  const total=firstDay+daysInMonth;
+  const remainder=total%7===0?0:7-(total%7);
+  for(let d=1;d<=remainder;d++){
+    cells+=`<div class="mc-cell dim-cell"><div class="mc-cell-date">${d}</div></div>`;
+  }
+
+  $('sch-month').innerHTML=`<div class="month-wrap">
+    <div class="month-dow-row">${dows.map((d,i)=>`<div class="month-dow" style="${i===0||i===6?'color:var(--warn)':''}">${d}</div>`).join('')}</div>
+    <div class="month-body">${cells}</div>
+  </div>`;
+}
+
+function prefillShootModal(dateStr){
+  // Populate client dropdown first
+  const opts=DB.clients.map(c=>`<option value="${c.code}">${c.name}（${c.code}）</option>`).join('');
+  const sel=$('ns2-client');
+  if(sel){sel.innerHTML='<option value="">選擇客戶…</option>'+opts;sel.onchange=()=>updateShootProjects(sel.value);}
+  $('ns2-date').value=dateStr;
+  $('ns2-proj').innerHTML='<option value="">選擇專案…</option>';
+  openModal('modal-shoot');
+}
+
+function updateShootProjects(code){
+  const sel=$('ns2-proj');if(!sel)return;
+  const projs=DB.projects.filter(p=>p.client_code===code);
+  sel.innerHTML='<option value="">選擇專案（選填）</option>'+
+    projs.map(p=>`<option value="${p.id}">${p.id} · 第${p.period||'?'}期 · ${p.stage}</option>`).join('');
+}
+
+function saveNewShoot(){
+  const dateStr=$('ns2-date').value;
+  const projId=$('ns2-proj').value;
+  const clientCode=$('ns2-client').value;
+  if(!dateStr){alert('請選擇日期');return;}
+  if(!clientCode){alert('請選擇客戶');return;}
+
+  if(projId){
+    // Update existing project's shoot_date
+    const p=DB.projects.find(x=>x.id===projId);
+    if(p){
+      p.shoot_date=dateStr;
+      // Recalc delivery if not manually set
+      if(!p.est_delivery)p.est_delivery='';
+    }
+  } else {
+    // No project yet — create a placeholder project
+    const newId='V-'+clientCode+'-'+Date.now().toString().slice(-4);
+    DB.projects.push({
+      id:newId,client_code:clientCode,period:'',video_count:'',
+      shoot_date:dateStr,est_delivery:'',stage:'已排程',payment:'待付款',
+      notes:$('ns2-notes').value.trim(),next_action:'',delivery_link:'',brief_link:''
+    });
+  }
+  saveDB();
+  closeModal('modal-shoot');
+  rSchMonth();rSchYear();rD();updateCounts();
+  ['ns2-date','ns2-loc','ns2-notes'].forEach(f=>$(f).value='');
+  $('ns2-proj').innerHTML='<option value="">選擇專案…</option>';
+  $('ns2-client').value='';
+  toast('拍攝行程已新增');
+}
+
+function deleteShootDate(pid,iso){
+  if(!confirm('確定移除這個拍攝日期？'))return;
+  const p=DB.projects.find(x=>x.id===pid);
+  if(p){p.shoot_date='';saveDB();rSchMonth();rD();toast('已移除拍攝日期');}
+}
+
+// ══ INIT ══════════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  loadDB();
+  // Check URL for editor param
+  const urlParams=new URLSearchParams(window.location.search);
+  const urlEditor=urlParams.get('editor');
+  if(urlEditor){
+    fEditor=urlEditor;
+    go('production');
+    setTimeout(()=>{
+      const sel=$('editor-filter');
+      if(sel){sel.value=urlEditor;}
+      const btn=$('copy-editor-link-btn');
+      if(btn){btn.style.display='flex';}
+      rProd();
+    },100);
+  }
+
+  $('today').textContent=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});
+  $('ni-date').value=new Date().toISOString().split('T')[0];
+  updateCounts();rD();rC();rS();
+  document.addEventListener('keydown',ev=>{if(ev.key==='Escape')document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open'));});
+});
+</script>
+</body>
+</html>
