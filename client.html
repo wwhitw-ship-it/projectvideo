@@ -8,14 +8,30 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --G:#1a4a1a;--Gm:#2d6e2d;--Gp:#e8f2e8;--Gw:#f2f7f2;
-  --ink:#111;--ink2:#444;--ink3:#888;
-  --border:#e0e8e0;--white:#fff;
+  --ink:#111;--ink2:#444;--ink3:#888;--border:#e0e8e0;--white:#fff;
   --ff:-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif;
   --mono:'SF Mono','Consolas',monospace
 }
 html{-webkit-text-size-adjust:100%}
 body{background:#f5f5f0;color:var(--ink);font-family:var(--ff);font-size:15px;line-height:1.6;min-height:100vh;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 
+/* ── ADMIN UNLOCK OVERLAY ── */
+.admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:24px}
+.admin-overlay.show{display:flex}
+.admin-card{background:var(--white);border-radius:20px;padding:28px 24px;width:100%;max-width:320px}
+.admin-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.admin-sub{font-size:13px;color:var(--ink3);margin-bottom:18px;line-height:1.5}
+.admin-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:13px 14px;font-family:var(--ff);font-size:16px;color:var(--ink);outline:none;transition:border-color .15s;-webkit-appearance:none}
+.admin-input:focus{border-color:var(--G)}
+.admin-input.error{border-color:#c45000;animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.admin-btns{display:flex;gap:8px;margin-top:12px}
+.admin-btn{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--ff);border:none;-webkit-tap-highlight-color:transparent}
+.admin-btn.ok{background:var(--G);color:#fff}
+.admin-btn.cancel{background:#f0f0f0;color:var(--ink2)}
+.admin-err{font-size:12px;color:#c45000;margin-top:8px;min-height:18px}
+
+/* ── HEADER ── */
 .header{background:var(--G);color:#fff;padding:16px 20px 14px;padding-top:calc(16px + env(safe-area-inset-top,0px));position:sticky;top:0;z-index:100}
 .header-brand{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;opacity:.45;margin-bottom:4px}
 .header-title{font-size:19px;font-weight:700;line-height:1.2;margin-bottom:2px}
@@ -27,13 +43,10 @@ body{background:#f5f5f0;color:var(--ink);font-family:var(--ff);font-size:15px;li
 .stat-l{font-size:11px;color:var(--ink3);margin-top:3px}
 
 .content{padding:0 14px}
-
-/* Project group */
 .proj-group{margin-bottom:20px}
 .proj-label{font-size:11px;font-family:var(--mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--Gm);font-weight:600;padding:0 4px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
 .proj-period{font-size:11px;color:var(--ink3);font-weight:400}
 
-/* Card */
 .card{background:var(--white);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .card-head{padding:16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;transition:background .1s}
 .card-head:active,.card.open .card-head{background:#f5fbf5}
@@ -44,7 +57,6 @@ body{background:#f5f5f0;color:var(--ink);font-family:var(--ff);font-size:15px;li
 .chev{font-size:16px;color:var(--ink3);transition:transform .2s;line-height:1}
 .card.open .chev{transform:rotate(90deg)}
 
-/* Badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
 .badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
 .b-done{background:#eaf3de;color:#27500a}
@@ -54,15 +66,11 @@ body{background:#f5f5f0;color:var(--ink);font-family:var(--ff);font-size:15px;li
 .b-waiting{background:#f0f0f0;color:#666}
 .dl-mark{font-size:11px;font-weight:600;color:#27500a;background:#eaf3de;padding:3px 8px;border-radius:10px}
 
-/* Card body */
 .card-body{display:none;border-top:1px solid var(--border);padding:16px}
 .card.open .card-body{display:block}
 .sec-label{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:600;margin-bottom:8px}
-
-/* Copy area */
 .copy-area{background:#f8f8f5;border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;color:var(--ink2);line-height:1.7;white-space:pre-line;margin-bottom:10px;word-break:break-all}
 
-/* Buttons */
 .btns{display:flex;flex-direction:column;gap:8px}
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer;border:none;font-family:var(--ff);-webkit-tap-highlight-color:transparent;transition:opacity .12s;width:100%;text-align:center}
 .btn:active{opacity:.75}
@@ -71,48 +79,55 @@ body{background:#f5f5f0;color:var(--ink);font-family:var(--ff);font-size:15px;li
 .btn-dl.downloaded{background:#27500a}
 .btn-publish{background:var(--white);color:var(--ink2);border:1.5px solid var(--border)}
 .hint{font-size:11px;color:var(--ink3);text-align:center;margin-top:6px}
-
-/* Not ready */
 .not-ready{padding:16px;text-align:center;color:var(--ink3)}
 .not-ready-icon{font-size:28px;margin-bottom:6px}
 .not-ready-txt{font-size:13px;line-height:1.6}
 
 .footer{text-align:center;padding:24px 20px;font-size:11px;color:var(--ink3);font-family:var(--mono)}
-
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(8px);background:var(--G);color:#fff;padding:10px 22px;border-radius:24px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;max-width:90vw}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:12px;color:var(--ink3);text-align:center}
-.error-page{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:12px;text-align:center;padding:24px}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:12px;color:var(--ink3);text-align:center;padding:24px}
 </style>
 </head>
 <body>
+
+<!-- 管理員解鎖 overlay -->
+<div class="admin-overlay" id="admin-overlay">
+  <div class="admin-card">
+    <div class="admin-title">需要管理員驗證</div>
+    <div class="admin-sub">此頁面需要管理員密碼才能查看</div>
+    <input class="admin-input" type="password" id="admin-pwd-input" placeholder="輸入管理員密碼…" onkeydown="if(event.key==='Enter')doAdminUnlock()">
+    <div class="admin-err" id="admin-err"></div>
+    <div class="admin-btns">
+      <button class="admin-btn cancel" onclick="closeAdminOverlay()">取消</button>
+      <button class="admin-btn ok" onclick="doAdminUnlock()">確認</button>
+    </div>
+  </div>
+</div>
 
 <header class="header">
   <div class="header-brand">VIDPRO · 影片交付清單</div>
   <div class="header-title" id="h-title">載入中…</div>
   <div class="header-sub" id="h-sub"></div>
 </header>
-
 <div class="stats" id="stats-bar" style="display:none">
   <div class="stat"><div class="stat-n" id="s-done">0</div><div class="stat-l">已交付</div></div>
   <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">總影片數</div></div>
   <div class="stat"><div class="stat-n" id="s-dl">0</div><div class="stat-l">已下載</div></div>
 </div>
-
 <div class="content" id="content">
   <div class="loading"><div style="font-size:32px">⏳</div><div>載入中</div></div>
 </div>
-
 <div class="footer">VIDPRO 短影音後製</div>
 <div class="toast" id="toast"></div>
 
 <script>
 const SK='vidpro_v3';
 const DL_KEY='vidpro_client_dl';
+const ADMIN_PWD='vidpro2026'; // 需與 index.html 一致
 
 const params=new URLSearchParams(window.location.search);
-const TOKEN=params.get('token')||'';
+const CLIENT_CODE=params.get('client')||'';
 
 function toast(m,d=2200){
   const t=document.getElementById('toast');
@@ -120,7 +135,6 @@ function toast(m,d=2200){
   setTimeout(()=>t.classList.remove('show'),d);
 }
 function e(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}
-
 function getDL(){try{return JSON.parse(localStorage.getItem(DL_KEY)||'{}')}catch{return{}}}
 function markDL(vid){const r=getDL();r[vid]=new Date().toISOString().split('T')[0];localStorage.setItem(DL_KEY,JSON.stringify(r));}
 function isDL(vid){return!!getDL()[vid]}
@@ -129,81 +143,102 @@ function statusBadge(s){
   const map={'已交付':'b-done 已交付','已歸檔':'b-done 已交付','審核中':'b-review 審核中','剪輯中':'b-editing 剪輯中','待剪輯':'b-pending 待剪輯','素材整理':'b-waiting 準備中'};
   const v=map[s]||'b-waiting '+s;
   const sp=v.indexOf(' ');
-  const cls=v.slice(0,sp),label=v.slice(sp+1);
-  return`<span class="badge ${cls}">${label}</span>`;
+  return`<span class="badge ${v.slice(0,sp)}">${v.slice(sp+1)}</span>`;
 }
 
-function render(){
-  let DB={};
-  try{const r=localStorage.getItem(SK);DB=r?JSON.parse(r):{};}catch{}
+function loadDB(){
+  try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{};}catch{return{};}
+}
 
-  if(!TOKEN){
-    document.getElementById('h-title').textContent='找不到您的資料';
-    document.getElementById('content').innerHTML=`<div class="error-page"><div style="font-size:48px">🔗</div><div style="font-size:16px;font-weight:700;color:#1a4a1a">請使用您的專屬連結</div><div style="font-size:13px;color:#888;margin-top:6px;line-height:1.7">若有疑問，請聯絡我們取得您的專屬網址</div></div>`;
+function renderPage(){
+  const DB=loadDB();
+  const client=(DB.clients||[]).find(c=>c.code===CLIENT_CODE);
+
+  if(!CLIENT_CODE||!client){
+    document.getElementById('h-title').textContent='找不到資料';
+    document.getElementById('content').innerHTML=`<div class="loading"><div style="font-size:40px">🔍</div><div>找不到此客戶資料<br><span style="font-size:13px;color:#aaa">請確認連結是否正確</span></div></div>`;
     return;
   }
 
-  // Find client by token
-  const client=(DB.clients||[]).find(c=>c.token===TOKEN);
-  if(!client){
-    document.getElementById('h-title').textContent='找不到您的資料';
-    document.getElementById('content').innerHTML=`<div class="error-page"><div style="font-size:48px">🔍</div><div style="font-size:16px;font-weight:700;color:#1a4a1a">連結已失效或不正確</div><div style="font-size:13px;color:#888;margin-top:6px;line-height:1.7">請聯絡我們重新取得您的專屬連結</div></div>`;
-    return;
-  }
+  // 直接顯示內容，不需要密碼
+  renderContent(DB, client);
+}
 
-  // Get all projects for this client
-  const projs=(DB.projects||[]).filter(p=>p.client_code===client.code&&!['已結案'].includes(p.stage));
+function showAdminOverlay(){
+  document.getElementById('admin-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('admin-pwd-input').focus(), 200);
+}
+
+function closeAdminOverlay(){
+  document.getElementById('admin-overlay').classList.remove('show');
+  // Redirect back or show blocked message
+  document.getElementById('h-title').textContent='存取受限';
+  document.getElementById('content').innerHTML=`<div class="loading"><div style="font-size:40px">🔒</div><div>此頁面需要管理員驗證<br><span style="font-size:13px;color:#aaa">請使用您的專屬連結</span></div></div>`;
+}
+
+function doAdminUnlock(){
+  const pwd=document.getElementById('admin-pwd-input').value;
+  const err=document.getElementById('admin-err');
+  if(pwd===ADMIN_PWD){
+    // Admin verified — allow access and remember
+    document.getElementById('admin-overlay').classList.remove('show');
+    document.getElementById('admin-pwd-input').value='';
+    const DB=loadDB();
+    const client=(DB.clients||[]).find(c=>c.code===CLIENT_CODE);
+    if(client) renderContent(DB, client);
+  } else {
+    err.textContent='密碼不正確';
+    document.getElementById('admin-pwd-input').value='';
+    document.getElementById('admin-pwd-input').classList.add('error');
+    setTimeout(()=>document.getElementById('admin-pwd-input').classList.remove('error'),400);
+  }
+}
+
+function renderContent(DB, client){
+  const projs=(DB.projects||[]).filter(p=>p.client_code===client.code&&p.stage!=='已結案');
   const allVids=(DB.videos||[]).filter(v=>projs.some(p=>p.id===v.project_id));
 
-  // Header
   document.getElementById('h-title').textContent=client.name;
   document.getElementById('h-sub').textContent=`${projs.length} 個專案 · 共 ${allVids.length} 支影片`;
 
-  // Stats
   const delivered=allVids.filter(v=>['已交付','已歸檔'].includes(v.status));
-  const dlCount=delivered.filter(v=>isDL(v.video_id)).length;
   document.getElementById('s-done').textContent=delivered.length;
   document.getElementById('s-total').textContent=allVids.length;
-  document.getElementById('s-dl').textContent=dlCount;
+  document.getElementById('s-dl').textContent=delivered.filter(v=>isDL(v.video_id)).length;
   document.getElementById('stats-bar').style.display='grid';
 
-  if(allVids.length===0){
-    document.getElementById('content').innerHTML=`<div class="loading"><div style="font-size:32px">📋</div><div>尚無影片紀錄<br><span style="font-size:13px">製作完成後會在此顯示</span></div></div>`;
+  if(!allVids.length){
+    document.getElementById('content').innerHTML=`<div class="loading"><div style="font-size:32px">📋</div><div>製作完成後會在此顯示</div></div>`;
     return;
   }
 
-  // Sort projects by shoot_date desc
   const sortedProjs=[...projs].sort((a,b)=>(b.shoot_date||'').localeCompare(a.shoot_date||''));
 
   const html=sortedProjs.map(proj=>{
     const vids=(DB.videos||[]).filter(v=>v.project_id===proj.id);
     if(!vids.length) return '';
-
     const sorted=[...vids].sort((a,b)=>{
       const o={已歸檔:0,已交付:1,審核中:2,剪輯中:3,待剪輯:4,素材整理:5};
       return(o[a.status]||9)-(o[b.status]||9);
     });
-
     const cards=sorted.map((v,i)=>{
       const isReady=['已交付','已歸檔'].includes(v.status);
       const dl=isDL(v.video_id);
       const sid=v.video_id.replace(/[^a-z0-9]/gi,'_');
       const script=(DB.scripts||[]).find(s=>s.video_id===v.video_id);
       const copyText=script?.copywriting||'';
-
-      const bodyHtml=isReady?`
+      const body=isReady?`
         ${copyText?`<div class="sec-label">IG 文案</div>
           <div class="copy-area" id="ca-${sid}">${e(copyText).replace(/\\\\n/g,'<br>').replace(/\n/g,'<br>')}</div>
           <div class="btns" style="margin-bottom:10px"><button class="btn btn-copy" onclick="copyCopy('${sid}')">複製文案</button></div>`:''}
         <div class="btns">
           ${v.final_link
-            ?`<a class="btn btn-dl${dl?' downloaded':''}" href="${v.final_link}" target="_blank" onclick="onDL('${v.video_id}')">${dl?'✓ 已下載':'↓ 下載完成檔'}</a>`
+            ?`<a class="btn btn-dl${dl?' downloaded':''}" href="${v.final_link}" target="_blank" onclick="onDL('${v.video_id}',this)">${dl?'✓ 已下載':'↓ 下載完成檔'}</a>`
             :`<button class="btn btn-dl" style="opacity:.4" disabled>完成檔準備中</button>`}
           ${v.publish_link?`<a class="btn btn-publish" href="${v.publish_link}" target="_blank">▷ 查看已發布影片</a>`:''}
         </div>
         ${v.final_link&&!dl?`<div class="hint">下載後系統會自動記錄</div>`:''}
       `:`<div class="not-ready"><div class="not-ready-icon">⏳</div><div class="not-ready-txt">這支影片目前${v.status}中<br>完成後會更新狀態</div></div>`;
-
       return`<div class="card" id="card-${sid}">
         <div class="card-head" onclick="toggleCard('${sid}')">
           <div class="head-left">
@@ -216,20 +251,17 @@ function render(){
             <span class="chev">›</span>
           </div>
         </div>
-        <div class="card-body">${bodyHtml}</div>
+        <div class="card-body">${body}</div>
       </div>`;
     }).join('');
-
     return`<div class="proj-group">
       <div class="proj-label">
         <span>${proj.id}</span>
-        <span class="proj-period">第 ${proj.period||'?'} 期・${proj.shoot_date||''}拍攝</span>
-      </div>
-      ${cards}
-    </div>`;
+        <span class="proj-period">第 ${proj.period||'?'} 期${proj.shoot_date?' · '+proj.shoot_date.replace(/-/g,'.')+' 拍攝':''}</span>
+      </div>${cards}</div>`;
   }).join('');
 
-  document.getElementById('content').innerHTML=html||`<div class="loading"><div>尚無影片</div></div>`;
+  document.getElementById('content').innerHTML=html;
 
   // Auto-open first undownloaded delivered video
   for(const proj of sortedProjs){
@@ -243,36 +275,29 @@ function render(){
   }
 }
 
-function toggleCard(sid){
-  const c=document.getElementById('card-'+sid);
-  if(c)c.classList.toggle('open');
-}
-
+function toggleCard(sid){const c=document.getElementById('card-'+sid);if(c)c.classList.toggle('open');}
 function copyCopy(sid){
   const el=document.getElementById('ca-'+sid);
-  if(!el){toast('沒有文案可複製');return;}
+  if(!el){toast('沒有文案');return;}
   const text=el.innerText||el.textContent;
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(text).then(()=>toast('文案已複製 ✓')).catch(()=>fallbackCopy(text));
-  } else { fallbackCopy(text); }
+  if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast('文案已複製 ✓')).catch(()=>fallbackCopy(text));}
+  else fallbackCopy(text);
 }
-
 function fallbackCopy(text){
-  const ta=document.createElement('textarea');
-  ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
   document.body.appendChild(ta);ta.select();
-  try{document.execCommand('copy');toast('文案已複製 ✓');}
-  catch{toast('請長按文字手動複製');}
+  try{document.execCommand('copy');toast('文案已複製 ✓');}catch{toast('請長按文字手動複製');}
   document.body.removeChild(ta);
 }
-
-function onDL(vid){
+function onDL(vid,btn){
   markDL(vid);
-  setTimeout(()=>render(),400);
+  if(btn){btn.className='btn btn-dl downloaded';btn.textContent='✓ 已下載';}
+  const el=document.getElementById('s-dl');
+  if(el)el.textContent=parseInt(el.textContent||0)+1;
   toast('已記錄下載 ✓');
 }
 
-render();
+renderPage();
 </script>
 </body>
 </html>
