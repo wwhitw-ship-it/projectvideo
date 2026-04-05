@@ -944,14 +944,14 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
 // ══ INITIAL DATA ══════════════════════════════════════════════════
 const INIT = {
   clients:[
-    {code:"C001",name:"曼都恆星",contact:"芳容",title:"店經理",social:"mentor_beata",status:"合作中",notes:"VVIP，以最優惠價格服務 ($10,000)"},
-    {code:"C003",name:"Bess",contact:"Sara",title:"主理人",social:"saraliu_223",status:"暫停",notes:"第一次試拍，第二次續約兩個月"},
-    {code:"C008",name:"Most",contact:"Sinco",title:"主理人",social:"most_hair_salon",status:"合作中",notes:"很凹，一定要口說之後留下文字紀錄"},
-    {code:"C010",name:"朵研髮藝",contact:"Yuri",title:"主理人",social:"kori.yuri",status:"暫停",notes:"兩次合作皆 $13,000"},
-    {code:"C011",name:"曼都常樂",contact:"毛貴人",title:"主理人",social:"maoguiren",status:"合作中",notes:"年度優惠 ($168,000 + 車資) 12個月。VIP，常常介紹客人"},
-    {code:"C018",name:"GURU咕鹿",contact:"紫霞",title:"主理人",social:"",status:"合作中",notes:"客戶有點緊張，需要提前佈局"},
-    {code:"C025",name:"蘊洛髮品",contact:"婷婷",title:"主理人",social:"",status:"合作中",notes:"想要讓人透過影片認識他"},
-    {code:"C027",name:"曼都朴子",contact:"曉妮",title:"店長",social:"",status:"合作中",notes:"毛貴人介紹"}
+    {code:"C001",name:"曼都恆星",contact:"芳容",title:"店經理",social:"mentor_beata",status:"合作中",notes:"VVIP，以最優惠價格服務 ($10,000)",token:"7g9d7s8c67"},
+    {code:"C003",name:"Bess",contact:"Sara",title:"主理人",social:"saraliu_223",status:"暫停",notes:"第一次試拍，第二次續約兩個月",token:"335uv1guuf"},
+    {code:"C008",name:"Most",contact:"Sinco",title:"主理人",social:"most_hair_salon",status:"合作中",notes:"很凹，一定要口說之後留下文字紀錄",token:"lgw8m4xcy9"},
+    {code:"C010",name:"朵研髮藝",contact:"Yuri",title:"主理人",social:"kori.yuri",status:"暫停",notes:"兩次合作皆 $13,000",token:"ak4z5vcd6f"},
+    {code:"C011",name:"曼都常樂",contact:"毛貴人",title:"主理人",social:"maoguiren",status:"合作中",notes:"年度優惠 ($168,000 + 車資) 12個月。VIP，常常介紹客人",token:"aqe21hzs3l"},
+    {code:"C018",name:"GURU咕鹿",contact:"紫霞",title:"主理人",social:"",status:"合作中",notes:"客戶有點緊張，需要提前佈局",token:"t1zrd94kl1"},
+    {code:"C025",name:"蘊洛髮品",contact:"婷婷",title:"主理人",social:"",status:"合作中",notes:"想要讓人透過影片認識他",token:"yhy6kvf9df"},
+    {code:"C027",name:"曼都朴子",contact:"曉妮",title:"店長",social:"",status:"合作中",notes:"毛貴人介紹",token:"riha4rwio6"}
   ],
   projects:[
     {id:"V-C015-01",client_code:"C015",period:"1/1",video_count:"10",est_delivery:"",shoot_date:"2025-12-09",stage:"已交付",payment:"已付款",notes:"曼都10部，比較沒有社群經驗",next_action:"",delivery_link:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTAjxuxJAkLHu606dSN_tu5-5NdDPWuJV4xwiRe7Z8DivIJTpuMRdak1Bsaq3Nmi0snEU_Mg00X0KJh/pubhtml?gid=839159546&single=true",brief_link:""},
@@ -2050,7 +2050,7 @@ function saveNewInteraction(){
 
 function saveNewClient(){
   if(!$('nc-name').value.trim()){alert('請填入店家名稱');return;}
-  DB.clients.push({code:$('nc-code').value.trim()||'C'+uid(),name:$('nc-name').value.trim(),contact:$('nc-contact').value.trim(),title:$('nc-title').value.trim(),social:$('nc-social').value.trim(),status:$('nc-status').value,notes:$('nc-notes').value.trim()});
+  DB.clients.push({code:$('nc-code').value.trim()||'C'+uid(),name:$('nc-name').value.trim(),contact:$('nc-contact').value.trim(),title:$('nc-title').value.trim(),social:$('nc-social').value.trim(),status:$('nc-status').value,notes:$('nc-notes').value.trim(),token:genToken()});
   saveDB();closeModal('modal-client');rC();updateCounts();toast('客戶已建立');
   ['nc-code','nc-name','nc-contact','nc-title','nc-social','nc-notes'].forEach(f=>$(f).value='');
 }
@@ -2098,13 +2098,20 @@ function copyEditorViewLink(){
 
 
 // ── 複製客戶專屬連結 ────────────────────────────────────────────
+function genToken(){
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)))
+    .map(b=>b.toString(36).padStart(2,'0')).join('').slice(0,10);
+}
+
 function copyClientLink(pid, clientCode){
   const base = window.location.href.split('index.html')[0].split('?')[0];
   const client = DB.clients.find(c=>c.code===clientCode);
-  const name = encodeURIComponent(client?.name||clientCode);
-  const url = base + 'client.html?project=' + encodeURIComponent(pid) + '&client=' + name;
+  // Ensure client has token
+  if(client && !client.token){ client.token=genToken(); saveDB(); }
+  const token = client?.token || clientCode;
+  const url = base + 'client.html?token=' + encodeURIComponent(token);
   navigator.clipboard.writeText(url).then(()=>{
-    toast('已複製客戶專屬連結 🔗');
+    toast('已複製 '+( client?.name||clientCode)+' 的專屬連結 🔗');
   }).catch(()=>{
     prompt('請手動複製此連結：', url);
   });
