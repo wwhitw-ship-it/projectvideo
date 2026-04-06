@@ -1561,6 +1561,10 @@ function rProd(){
       <div class="proj-list-inner">${projRows}</div>
     </div>`;
   }).join('');
+
+  // 還原展開狀態
+  openClients.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
+  openProjs.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
 }
 
 
@@ -1760,13 +1764,7 @@ function saveAndCloseNote(){
   if(v){
     v.notes = $('note-content').value;
     saveDB();
-    const openClients=[...document.querySelectorAll('.client-row.open')].map(el=>el.id);
-    const openProjs=[...document.querySelectorAll('.proj-row.open')].map(el=>el.id);
     rProd();
-    setTimeout(()=>{
-      openClients.forEach(id=>{const el=$(id);if(el&&!el.classList.contains('open'))toggleClient(id);});
-      setTimeout(()=>{openProjs.forEach(id=>{const el=$(id);if(el&&!el.classList.contains('open'))toggleProj(id);});},60);
-    },50);
   }
   closeModal('modal-note');
   noteCurrentVid = null;
