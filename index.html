@@ -1159,26 +1159,27 @@ const SK='vidpro_v3';let DB={};let saveTimer=null;
 // ── 從 Sheets 載入所有資料 ──────────────────────────────────────
 async function loadFromSheets(){
   const dot=$('save-dot'),txt=$('save-txt');
-  if(txt) txt.textContent='從 Sheets 載入…';
+  if(txt){txt.textContent='從 Sheets 載入…';if(dot)dot.className='save-dot dirty';}
   try {
-    const res = await fetch(SHEETS_API + '?action=read_all');
+    const res = await fetch(SHEETS_API + '?action=read_all&t='+Date.now());
     const json = await res.json();
     if(json.ok && json.data){
-      // Map Sheets data to DB format
+      // Sheets 永遠是主，完整覆蓋 DB
       DB.clients      = json.data.clients      || [];
       DB.projects     = json.data.projects     || [];
       DB.videos       = json.data.videos       || [];
       DB.scripts      = json.data.scripts      || [];
       DB.interactions = json.data.interactions || [];
-      DB.payments     = DB.payments || [];
-      // Also cache in localStorage as fallback
+      DB.payments     = DB.payments            || [];
+      // 完整覆蓋 localStorage
       localStorage.setItem(SK, JSON.stringify(DB));
-      if(txt){ txt.textContent='已從 Sheets 載入';
-        $('save-dot').className='save-dot ok'; }
+      if(txt)txt.textContent='Sheets 已同步 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      if(dot)dot.className='save-dot ok';
       return true;
     }
   } catch(e) {
-    console.warn('Sheets 載入失敗，切換到 localStorage:', e);
+    console.warn('Sheets 載入失敗，使用 localStorage:', e);
+    if(txt)txt.textContent='離線模式（localStorage）';
   }
   return false;
 }
@@ -1216,14 +1217,14 @@ function saveDB(silent=false){
     if(USE_SHEETS){
       try{
         const collections=['clients','projects','videos','scripts','interactions'];
-        for(const col of collections){
+        await Promise.all(collections.map(col=>{
           if(DB[col]&&DB[col].length>0){
-            await fetch(SHEETS_API,{
+            return fetch(SHEETS_API,{
               method:'POST',
               body:JSON.stringify({action:'write_all',collection:col,data:DB[col]})
             });
           }
-        }
+        }));
         if(dot){dot.className='save-dot ok';
           txt.textContent='已同步 Sheets · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}
       } catch(e){
@@ -2606,7 +2607,7 @@ window.addEventListener('load',async ()=>{
   updateCounts();rD();rC();rS();
   if(USE_SHEETS){
     const ok=await loadFromSheets();
-    if(ok){updateCounts();rD();rC();rS();toast('✓ 已從 Google Sheets 載入');}
+    if(ok){updateCounts();rD();rC();rS();if(typeof rProd==='function')rProd();}
   }
   // Check URL for editor param
   const urlParams=new URLSearchParams(window.location.search);
