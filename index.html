@@ -1508,8 +1508,11 @@ function rProd(){
       const _periods=[...new Set(pvids.map(v=>v.period||'').filter(Boolean))].sort();
       const useGroups=_periods.length>1;
       const periods=_periods;
-      const pdone=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
-      const ppct=pvids.length?Math.round(pdone/pvids.length*100):0;
+      const _latPer=periods.length?periods[periods.length-1]:'';
+      const _progVids=_latPer?pvids.filter(v=>v.period===_latPer):pvids;
+      const pdone=_progVids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+      const ptotalProg=_progVids.length||parseInt(p.video_count)||0;
+      const ppct=ptotalProg?Math.round(pdone/ptotalProg*100):0;
       const pclr=ppct>=80?'#4a9e4a':ppct>=40?'#d4a000':'#c45000';
       const stOpts=STAGES.map(o=>`<option${o===p.stage?' selected':''}>${o}</option>`).join('');
       const pyOpts=['已付款','待付款'].map(o=>`<option${o===p.payment?' selected':''}>${o}</option>`).join('');
@@ -1550,11 +1553,27 @@ function rProd(){
           <td><button class="icon-btn danger" style="padding:2px 6px;font-size:10px" onclick="deleteVideo('${v.video_id}')">刪</button></td>
         </tr>`;
       }).join('');
+      // 取得最新期數（排序最後一個）
+      const latestPeriod=periods[periods.length-1];
       const videoRows=useGroups
-        ?periods.map(per=>{
+        ?periods.slice().reverse().map(per=>{
             const pv=pvids.filter(v=>v.period===per);
-            return '<tr><td colspan="13" style="padding:4px 8px 4px 16px;background:var(--Gp);font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm)">第 '+per+' 期（'+pv.length+' 支）</td></tr>'
-              +_renderVids(pv);
+            const isLatest=per===latestPeriod;
+            const pgid='pg-'+pid+'-'+per.replace(/[^a-z0-9]/gi,'_');
+            const perDone=pv.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+            return [
+              `<tr style="cursor:pointer;user-select:none" onclick="togglePeriodGroup('${pgid}')">
+                <td colspan="13" style="padding:5px 8px 5px 16px;background:var(--Gp)">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm)">第 ${per} 期</span>
+                    <span style="font-size:10px;color:var(--ink3)">${perDone}/${pv.length} 支完成</span>
+                    ${isLatest?'<span style="font-size:9px;background:var(--G);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700">目前</span>':''}
+                    <span style="margin-left:auto;font-size:12px;color:var(--Gm)" id="chev-${pgid}">${isLatest?'▾':'►'}</span>
+                  </div>
+                </td>
+              </tr>`,
+              `<tbody id="${pgid}" style="display:${isLatest?'table-row-group':'none'}">${_renderVids(pv)}</tbody>`
+            ].join('');
           }).join('')
         :_renderVids(pvids);
 
@@ -1573,7 +1592,7 @@ function rProd(){
                 <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
                   <div style="height:100%;width:${ppct}%;background:${pclr};border-radius:2px;transition:width .4s"></div>
                 </div>
-                <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${pvids.length} 支</span>
+                <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${ptotal} 支</span>
               </div>`:'<div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:4px">尚無影片紀錄</div>'}
             </div>
           </div>
@@ -2382,6 +2401,17 @@ function copyEditorViewLink(){
 }
 
 
+
+
+// ── 期數群組開合 ────────────────────────────────────────────────
+function togglePeriodGroup(pgid){
+  const el=document.getElementById(pgid);
+  const chev=document.getElementById('chev-'+pgid);
+  if(!el) return;
+  const isOpen=el.style.display==='table-row-group';
+  el.style.display=isOpen?'none':'table-row-group';
+  if(chev) chev.textContent=isOpen?'►':'▾';
+}
 
 // ── Client CRM 開合 ──────────────────────────────────────────────
 function autoResize(el){
