@@ -823,6 +823,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
     <div class="fr"><label>選擇腳本（選填）</label>
       <select id="nv-script" onchange="onVideoScriptChange()"><option value="">不連結腳本，手動填入</option></select>
     </div>
+    <div class="fr"><label>期數（自動帶入）</label><input id="nv-period" placeholder="1/1"></div>
     <div class="f2">
       <div class="fr"><label>影片編號</label><input id="nv-vid" placeholder="V-C001-01-V01"></div>
       <div class="fr"><label>影片標題</label><input id="nv-title" placeholder="EP01_你好厲害"></div>
@@ -1497,6 +1498,9 @@ function rProd(){
 
     const projRows=g.projects.map(p=>{
       const pvids=DB.videos.filter(v=>v.project_id===p.id&&(!fEditor||v.editor===fEditor));
+      const _periods=[...new Set(pvids.map(v=>v.period||'').filter(Boolean))].sort();
+      const useGroups=_periods.length>1;
+      const periods=_periods;
       const pdone=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
       const ppct=pvids.length?Math.round(pdone/pvids.length*100):0;
       const pclr=ppct>=80?'#4a9e4a':ppct>=40?'#d4a000':'#c45000';
@@ -1504,7 +1508,7 @@ function rProd(){
       const pyOpts=['已付款','待付款'].map(o=>`<option${o===p.payment?' selected':''}>${o}</option>`).join('');
       const pid='pr-'+p.id.replace(/[^a-z0-9]/gi,'_');
 
-      const videoRows=pvids.map((v,i)=>{
+      const _renderVids=(vids)=>vids.map((v,i)=>{
         const cls={已歸檔:'vs-已歸檔',已交付:'vs-已交付',剪輯中:'vs-剪輯中',審核中:'vs-審核中',待剪輯:'vs-待剪輯',素材整理:'vs-素材整理'}[v.status]||'';
         const opts=VSTATUS.map(o=>`<option${o===v.status?' selected':''}>${o}</option>`).join('');
         // Find matching script
@@ -1539,6 +1543,13 @@ function rProd(){
           <td><button class="icon-btn danger" style="padding:2px 6px;font-size:10px" onclick="deleteVideo('${v.video_id}')">刪</button></td>
         </tr>`;
       }).join('');
+      const videoRows=useGroups
+        ?periods.map(per=>{
+            const pv=pvids.filter(v=>v.period===per);
+            return '<tr><td colspan="13" style="padding:4px 8px 4px 16px;background:var(--Gp);font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm)">第 '+per+' 期（'+pv.length+' 支）</td></tr>'
+              +_renderVids(pv);
+          }).join('')
+        :_renderVids(pvids);
 
       return `<div class="proj-row" id="${pid}">
         <div class="proj-header" onclick="toggleProj('${pid}')">
@@ -1747,11 +1758,12 @@ function addCartToProject(){
     const num=String(existVids.length+1+added).padStart(2,'0');
     const newVid=pid+'-V'+num;
     // Create video record
+    const _cp=DB.projects.find(x=>x.id===pid);
     DB.videos.push({
       video_id:newVid,project_id:pid,
       title:s.title,status:'待剪輯',
       editor:'',done_date:'',footage_link:'',
-      final_link:'',publish_link:'',views:'',notes:''
+      final_link:'',publish_link:'',views:'',notes:'',period:_cp?.period||''
     });
     // Link script
     s.video_id=newVid;
@@ -2270,6 +2282,8 @@ function openModal(id){
 function closeModal(id){$(id).classList.remove('open');}
 function openAddVideo(pid){
   $('nv-pid').value=pid;
+  const _proj=DB.projects.find(x=>x.id===pid);
+  const _np=$('nv-period');if(_np&&_proj)_np.value=_proj.period||'';
   const scripts=DB.scripts.filter(s=>!s.video_id||(s.project_id===pid));
   const nvsEl=$('nv-script');
   if(nvsEl){
@@ -2282,7 +2296,7 @@ function openAddVideo(pid){
 function saveNewProject(){
   const cc=$('np-client-code').value;if(!cc){alert('請選擇客戶');return;}
   const pid=$('np-id').value.trim()||'V-NEW-'+uid();
-  DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:'',next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
+  DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),total_periods:$('np-total-periods').value.trim()||'1',video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:'',next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
   markDirty('projects');saveDB();closeModal('modal-proj');rD();rProd();updateCounts();toast('專案已建立');
   ['np-id','np-period','np-count','np-shoot','np-est-delivery','np-delivery','np-brief','np-action'].forEach(f=>$(f).value='');
   $('np-client-code').value='';
@@ -2292,7 +2306,7 @@ function saveNewVideo(){
   if(!$('nv-title').value.trim()){alert('請填入影片標題');return;}
   const pid=$('nv-pid').value;
     const newVid=$('nv-vid').value.trim()||uid();
-  DB.videos.push({video_id:newVid,project_id:pid,title:$('nv-title').value.trim(),status:$('nv-status').value,editor:$('nv-editor').value.trim(),done_date:$('nv-done').value,footage_link:$('nv-footage').value.trim(),final_link:$('nv-final').value.trim(),publish_link:$('nv-link').value.trim(),views:$('nv-views').value.trim(),notes:$('nv-notes').value.trim()});
+  DB.videos.push({video_id:newVid,project_id:pid,title:$('nv-title').value.trim(),status:$('nv-status').value,editor:$('nv-editor').value.trim(),done_date:$('nv-done').value,footage_link:$('nv-footage').value.trim(),final_link:$('nv-final').value.trim(),publish_link:$('nv-link').value.trim(),views:$('nv-views').value.trim(),notes:$('nv-notes').value.trim(),period:($('nv-period')||{}).value||''});
   // Link script if selected
   const selScript=$('nv-script').value;
   if(selScript){
