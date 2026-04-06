@@ -539,7 +539,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
             <button class="pill" onclick="fC('暫停',this)">暫停</button>
             <button class="pill" onclick="fC('結案',this)">結案</button>
           </div>
-          <button class="icon-btn primary" onclick="openModal('modal-client')">＋ 新增客戶</button>
+          <button class="icon-btn primary" onclick="openAddClient()">＋ 新增客戶</button>
         </div>
       </div>
       <div class="client-grid" id="cg"></div>
@@ -1282,7 +1282,7 @@ function stageBadge(s){return s?`<span class="badge st-${s}">${s}</span>`:'—';
 function payBadge(p){return p?`<span class="badge pay-${p}">${p}</span>`:'—';}
 function vsBadge(s){return s?`<span class="badge vs-${s}">${s}</span>`:'—';}
 
-let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='',fSClient='';
+let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='',fSClient='',fCRMSort='recent';
 let sheetsReady=false; // 防止 Sheets 載入前 saveDB 覆蓋資料
 
 function toast(m,d=1800){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
@@ -1876,8 +1876,9 @@ function rC(){
   let cs=DB.clients;
   if(fCv!=='all')cs=cs.filter(c=>c.status===fCv);
   if(q)cs=cs.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q));
-  // Sort by latest interaction date, then by latest project shoot_date
+  // Sort based on fCRMSort
   cs=[...cs].sort((a,b)=>{
+    if(fCRMSort==='code') return a.code.localeCompare(b.code);
     const lastInt=code=>DB.interactions.filter(i=>i.client_code===code).map(i=>i.date).sort().pop()||'';
     const lastProj=code=>DB.projects.filter(p=>p.client_code===code).map(p=>p.shoot_date||'').sort().pop()||'';
     const aDate=lastInt(a.code)||lastProj(a.code);
@@ -1907,7 +1908,11 @@ function rC(){
             <span style="font-size:11px;color:var(--ink3)">${c.contact||'—'}${c.title?' · '+e(c.title):''}</span>
             ${c.social?`<span style="font-size:11px;color:var(--Gm)">@${e(c.social)}</span>`:''}
             <span style="font-size:11px;color:var(--ink3)">合作 ${collab} 次</span>
-            ${lastInt?`<span style="font-size:11px;color:var(--ink3)">最近互動：${fd(lastInt.date)}</span>`:''}
+            ${lastInt?(()=>{
+              const days=Math.floor((new Date()-new Date(lastInt.date))/(1000*60*60*24));
+              const col=days>60?'var(--warn)':days>30?'#c47000':'var(--ink3)';
+              return `<span style="font-size:11px;color:${col};font-weight:${days>30?'700':'400'}">${days}天前互動</span>`;
+            })():'<span style="font-size:11px;color:var(--ink3)">尚無互動</span>'}
           </div>
         </div>
         <div style="padding:11px 14px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
@@ -1926,7 +1931,10 @@ function rC(){
 
         <!-- 專案記錄 -->
         <div class="ccard-section">
-          <div class="ccard-sec-label">專案記錄（${clientProjs.length} 個）</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span class="ccard-sec-label" style="margin-bottom:0">專案記錄（${clientProjs.length} 個）</span>
+            <button class="add-btn" style="font-size:11px" onclick="openAddProjForClient('${c.code}')">＋ 新增專案</button>
+          </div>
           ${clientProjs.length?clientProjs.map(p=>{
             const pvids=DB.videos.filter(v=>v.project_id===p.id);
             const done=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
@@ -2389,6 +2397,53 @@ function checkFinancePwd(){
     $('finance-pwd').classList.add('shake');
     setTimeout(()=>$('finance-pwd').classList.remove('shake'),400);
   }
+}
+
+
+
+// ── CRM 排序切換 ──────────────────────────────────────────────────
+function setCRMSort(mode, btn){
+  fCRMSort = mode;
+  document.querySelectorAll('#f-crm-sort .pill').forEach(p=>p.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  rC();
+}
+
+// ── 新增專案（從客戶 CRM 觸發，帶入客戶代號）────────────────────
+function openAddProjForClient(clientCode){
+  event.stopPropagation();
+  // 找這個客戶的所有專案，算出下一個期數
+  const projs = DB.projects.filter(p=>p.client_code===clientCode);
+  const nums = projs.map(p=>{
+    const m = p.id.match(/C\d+-(\d+)$/);
+    return m ? parseInt(m[1]) : 0;
+  });
+  const nextNum = nums.length ? Math.max(...nums) + 1 : 1;
+  const nextId = 'V-' + clientCode + '-' + String(nextNum).padStart(2,'0');
+
+  // Pre-fill project modal
+  const npId = $('np-id');
+  const npClient = $('np-client-code');
+  if(npId) npId.value = nextId;
+  if(npClient){
+    npClient.value = clientCode;
+    // Trigger change to update client name display if any
+  }
+  openModal('modal-proj');
+}
+
+// ── 新增客戶 — 自動帶入下一個代號 ─────────────────────────────
+function openAddClient(){
+  // 算出下一個客戶代號
+  const codes = DB.clients.map(c=>{
+    const m = c.code.match(/C(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+  });
+  const nextNum = codes.length ? Math.max(...codes) + 1 : 1;
+  const nextCode = 'C' + String(nextNum).padStart(3,'0');
+  const el = $('nc-code');
+  if(el) el.value = nextCode;
+  openModal('modal-client');
 }
 
 // ── 金流管理 → 直接開 Google Sheets ────────────────────────────
