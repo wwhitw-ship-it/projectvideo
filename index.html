@@ -441,6 +441,9 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
     <div class="nav-item" onclick="go('clients')"><span class="nav-icon">▣</span>客戶 CRM<span class="nav-cnt" id="cnt-c">—</span></div>
     <div class="nav-item" onclick="go('scripts')"><span class="nav-icon">▤</span>腳本庫<span class="nav-cnt" id="cnt-s">—</span></div>
     <div class="nav-item" onclick="openFinanceLock()"><span class="nav-icon">◎</span>金流管理<span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);margin-left:auto">🔒</span></div>
+    <div style="margin-top:auto;padding:12px 12px 8px">
+      <button onclick="clearCacheAndReload()" style="width:100%;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--ff);display:flex;align-items:center;justify-content:center;gap:6px">⟳ 清除快取重新整理</button>
+    </div>
     <div class="nav-item" onclick="go('schedule')"><span class="nav-icon">▦</span>拍攝行程<span class="nav-cnt" id="cnt-sch">—</span></div>
   </nav>
   <div class="sb-bottom">
@@ -465,7 +468,6 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
         <span class="save-dot" id="save-dot"></span>
         <span style="font-size:10px;color:rgba(255,255,255,.55);font-family:var(--mono);white-space:nowrap" id="save-txt">載入中</span>
         <button id="save-sheets-btn" onclick="confirmSaveToSheets()" style="display:none;background:#fff;color:var(--G);border:none;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--ff);white-space:nowrap">↑ 儲存到 Sheets</button>
-        <button onclick="clearCacheAndReload()" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--ff);white-space:nowrap" title="清除本地快取並重新從 Sheets 載入">⟳ 清除快取</button>
       </div>
       <div class="date-chip" id="today">—</div>
     </div>
