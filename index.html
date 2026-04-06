@@ -1505,9 +1505,7 @@ function rProd(){
 
     const projRows=g.projects.map(p=>{
       const pvids=DB.videos.filter(v=>v.project_id===p.id&&(!fEditor||v.editor===fEditor));
-      const _periods=[...new Set(pvids.map(v=>v.period||'').filter(Boolean))].sort();
-      const useGroups=_periods.length>1;
-      const periods=_periods;
+
       const _latPer=periods.length?periods[periods.length-1]:'';
       const _progVids=_latPer?pvids.filter(v=>v.period===_latPer):pvids;
       const pdone=_progVids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
@@ -1518,64 +1516,7 @@ function rProd(){
       const pyOpts=['已付款','待付款'].map(o=>`<option${o===p.payment?' selected':''}>${o}</option>`).join('');
       const pid='pr-'+p.id.replace(/[^a-z0-9]/gi,'_');
 
-      const _renderVids=(vids)=>vids.map((v,i)=>{
-        const cls={已歸檔:'vs-已歸檔',已交付:'vs-已交付',剪輯中:'vs-剪輯中',審核中:'vs-審核中',待剪輯:'vs-待剪輯',素材整理:'vs-素材整理'}[v.status]||'';
-        const opts=VSTATUS.map(o=>`<option${o===v.status?' selected':''}>${o}</option>`).join('');
-        // Find matching script
-        // Find by video_id first, fallback to project+title match
-        const scr=DB.scripts.find(s=>s.video_id===v.video_id) || DB.scripts.find(s=>s.project_id===p.id&&s.title===v.title);
-        return `<tr>
-          <td><span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">EP${String(i+1).padStart(2,'0')}</span></td>
-          <td><div class="vt-title" title="${e(v.title)}">${e(v.title)}</div><div class="vt-code">${v.video_id}</div></td>
-          <td style="background:#faf8ff;max-width:160px">
-            ${scr
-              ?`<div onclick="showScriptPopup(event,'${scr.script_id}')" style="cursor:pointer;padding:3px 6px;border-radius:5px;transition:background .12s" onmouseover="this.style.background='#eeecff'" onmouseout="this.style.background='transparent'">
-                  <div style="font-size:11px;font-weight:600;color:#5b4ab0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:148px">${e(scr.title)}</div>
-                  <div style="font-size:10px;color:var(--ink3);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:148px;margin-top:1px">${e(scr.summary)}</div>
-                  <div style="font-size:9px;color:#7c5abf;margin-top:2px;font-family:var(--mono)">點擊查看 ↗</div>
-                </div>`
-              :`<span style="font-size:11px;color:var(--ink3)">—</span>`
-            }
-          </td>
-          <td class="ec"><select class="status-sel ${cls}" onchange="changeVStatus('${v.video_id}',this,'${p.id}','${p.client_code}')" onclick="event.stopPropagation()">${opts}</select></td>
-          <td class="ec"><span class="editable" onclick="editField('videos','${v.video_id}','editor',this)" style="font-size:12px;font-weight:700;color:var(--Gm)">${e(v.editor)||'—'}<span class="edit-hint">✎</span></span></td>
-          <td><span class="done-date-cell" style="font-family:var(--mono);font-size:11px;color:${v.done_date?'var(--Gm)':'var(--ink3)'}">${fd(v.done_date)||'—'}</span></td>
-          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','footage_link',this)" title="${e(v.footage_link)}">${v.footage_link?`<a href="${v.footage_link}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--blue);text-decoration:none;padding:2px 6px;background:var(--bluebg);border-radius:4px">▷ 素材</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
-          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','final_link',this)" title="${e(v.final_link)}">${v.final_link?`<a href="${v.final_link}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--Gm);text-decoration:none;padding:2px 6px;background:var(--Gp);border-radius:4px">▷ 完成檔</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
-          <td class="ec" style="max-width:120px" onclick="event.stopPropagation()">
-            <div onclick="showNotePopup('${v.video_id}')" style="cursor:pointer;padding:3px 6px;border-radius:5px;min-height:28px;transition:background .12s;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='var(--bluebg)'" onmouseout="this.style.background='transparent'">
-              <span style="font-size:11px;color:${v.notes?'var(--ink2)':'var(--ink3)'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100px">${v.notes?e(v.notes):'＋ 新增備註'}</span>
-              <span style="font-size:9px;color:var(--blue);font-family:var(--mono);flex-shrink:0;opacity:0.7">${v.notes?'✎':''}</span>
-            </div>
-          </td>
-          <td class="ec"><span class="editable" onclick="editField('videos','${v.video_id}','views',this)" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--Gm)">${e(v.views)||'—'}<span class="edit-hint">✎</span></span></td>
-          <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','publish_link',this)" title="${e(v.publish_link)}">${v.publish_link?`<a href="${v.publish_link}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--G);text-decoration:none">▷ 發布</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
-          <td><button class="icon-btn danger" style="padding:2px 6px;font-size:10px" onclick="deleteVideo('${v.video_id}')">刪</button></td>
-        </tr>`;
-      }).join('');
-      // 取得最新期數（排序最後一個）
-      const latestPeriod=periods[periods.length-1];
-      const videoRows=useGroups
-        ?periods.slice().reverse().map(per=>{
-            const pv=pvids.filter(v=>v.period===per);
-            const isLatest=per===latestPeriod;
-            const pgid='pg-'+pid+'-'+per.replace(/[^a-z0-9]/gi,'_');
-            const perDone=pv.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
-            return [
-              `<tr style="cursor:pointer;user-select:none" onclick="togglePeriodGroup('${pgid}')">
-                <td colspan="13" style="padding:5px 8px 5px 16px;background:var(--Gp)">
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm)">第 ${per} 期</span>
-                    <span style="font-size:10px;color:var(--ink3)">${perDone}/${pv.length} 支完成</span>
-                    ${isLatest?'<span style="font-size:9px;background:var(--G);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700">目前</span>':''}
-                    <span style="margin-left:auto;font-size:12px;color:var(--Gm)" id="chev-${pgid}">${isLatest?'▾':'►'}</span>
-                  </div>
-                </td>
-              </tr>`,
-              `<tbody id="${pgid}" style="display:${isLatest?'table-row-group':'none'}">${_renderVids(pv)}</tbody>`
-            ].join('');
-          }).join('')
-        :`<tbody>${_renderVids(pvids)}</tbody>`;
+      
 
       return `<div class="proj-row" id="${pid}">
         <div class="proj-header" onclick="toggleProj('${pid}')">
@@ -1621,9 +1562,26 @@ function rProd(){
               </div>
             </div>
           </div>
-          ${pvids.length?`<div style="overflow-x:auto"><table class="vt">
-            <thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead>
-            ${videoRows}</table></div>`:`<div style="padding:12px 18px 12px 44px;color:var(--ink3);font-size:12px">尚無影片紀錄</div>`}
+          ${pvids.length?`${useGroups
+            ?periods.slice().reverse().map(per=>{
+                const pv=pvids.filter(v=>v.period===per);
+                const isLatest=per===latestPeriod;
+                const pgid='pg-'+pid+'-'+per.replace(/[^a-z0-9]/gi,'_');
+                const perDone=pv.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+                return `<div style="margin-bottom:4px">
+                  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--Gp);border-radius:6px 6px 0 0;cursor:pointer" onclick="togglePeriodGroup('${pgid}')">
+                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--Gm)">第 ${per} 期</span>
+                    <span style="font-size:10px;color:var(--ink3)">${perDone}/${pv.length} 支</span>
+                    ${isLatest?'<span style="font-size:9px;background:var(--G);color:#fff;padding:1px 6px;border-radius:10px">目前</span>':''}
+                    <span style="margin-left:auto;font-size:11px;color:var(--Gm)" id="chev-${pgid}">${isLatest?'▾':'►'}</span>
+                  </div>
+                  <div id="${pgid}" style="display:${isLatest?'block':'none'};overflow-x:auto">
+                    <table class="vt"><thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead><tbody>${_renderVids(pv)}</tbody></table>
+                  </div>
+                </div>`;
+              }).join('')
+            :`<div style="overflow-x:auto"><table class="vt"><thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead><tbody>${_renderVids(pvids)}</tbody></table></div>`
+          }`:`<div style="padding:12px 18px 12px 44px;color:var(--ink3);font-size:12px">尚無影片紀錄</div>`}
           <div class="vp-add">
             <button class="add-btn" onclick="openAddVideo('${p.id}')">＋ 新增影片</button>
             <button class="icon-btn danger" style="font-size:11px;margin-left:8px" onclick="deleteProject('${p.id}')">刪除專案</button>
@@ -2409,7 +2367,7 @@ function togglePeriodGroup(pgid){
   const chev=document.getElementById('chev-'+pgid);
   if(!el) return;
   const isOpen=el.style.display==='table-row-group';
-  el.style.display=isOpen?'none':'table-row-group';
+  el.style.display=isOpen?'none':'block';
   if(chev) chev.textContent=isOpen?'►':'▾';
 }
 
