@@ -777,7 +777,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
     </div>
     <div class="fr"><label>交付連結</label><input id="np-delivery" placeholder="Google Sheets 交付清單連結"></div>
     <div class="fr"><label>原始腳本連結</label><input id="np-brief" placeholder="提供給客戶的腳本 Drive 連結"></div>
-    <div class="fr"><label>備註</label><textarea id="np-notes" placeholder="專案備註…"></textarea></div>
+    
     <div class="fr"><label>下一步行動</label><input id="np-action" placeholder="例：3/18 檔案整理"></div>
     <div class="modal-btns">
       <button class="btn-c" onclick="closeModal('modal-proj')">取消</button>
@@ -1207,13 +1207,33 @@ function saveDB(silent=false){
   const dot=$('save-dot'),txt=$('save-txt');
   if(dot){dot.className='save-dot dirty';txt.textContent='儲存中…';}
   saveTimer=setTimeout(async ()=>{
-    try{
-      localStorage.setItem(SK,JSON.stringify(DB));
+    // 1. 存到 localStorage（即時）
+    try{ localStorage.setItem(SK,JSON.stringify(DB)); } catch(e){}
+    // 2. 推送到 Google Sheets（背景）
+    if(USE_SHEETS){
+      try{
+        const collections=['clients','projects','videos','scripts','interactions'];
+        for(const col of collections){
+          if(DB[col]&&DB[col].length>0){
+            await fetch(SHEETS_API,{
+              method:'POST',
+              body:JSON.stringify({action:'write_all',collection:col,data:DB[col]})
+            });
+          }
+        }
+        if(dot){dot.className='save-dot ok';
+          txt.textContent='已同步 Sheets · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}
+      } catch(e){
+        console.warn('Sheets 寫入失敗:',e);
+        if(dot){dot.className='save-dot ok';
+          txt.textContent='已儲存（Sheets 離線）';}
+      }
+    } else {
       if(dot){dot.className='save-dot ok';
         txt.textContent='已儲存 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}
-    } catch(e){if(txt)txt.textContent='儲存失敗';}
+    }
     if(!silent)toast('已儲存');
-  },600);
+  },1200);
 }
 
 // ══ UTILS ═════════════════════════════════════════════════════════
@@ -1480,14 +1500,24 @@ function rProd(){
         </div>
         <div class="video-panel">
           <div class="proj-fields">
-            <div class="pf-row"><span class="pf-lbl">備　註</span><textarea class="pf-inp" rows="1" placeholder="專案備註…" onblur="saveProjField('${p.id}','notes',this)">${e(p.notes)}</textarea></div>
+
             <div class="pf-row"><span class="pf-lbl">交付</span>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 ${p.delivery_link?`<a class="dl-btn" href="${p.delivery_link}" target="_blank">▷ 交付清單</a><span class="editable" onclick="editDeliveryLink('${p.id}',this)" style="font-size:11px;color:var(--ink3)">編輯 ✎</span>`:`<span class="editable" onclick="editDeliveryLink('${p.id}',this)" style="font-size:12px;color:var(--ink3)">＋ 舊交付連結 ✎</span>`}
                 <button class="icon-btn" onclick="event.stopPropagation();copyClientLink('${p.id}','${p.client_code}')" style="font-size:11px;white-space:nowrap">🔗 複製客戶連結</button>
               </div>
             </div>
-            <div class="pf-row"><span class="pf-lbl">腳本</span>${p.brief_link?`<a class="dl-btn" href="${p.brief_link}" target="_blank">▷ 原始腳本</a><span class="editable" onclick="editBriefLink('${p.id}',this)" style="font-size:11px;color:var(--ink3);margin-left:8px">編輯 ✎</span>`:`<span class="editable" onclick="editBriefLink('${p.id}',this)" style="font-size:12px;color:var(--ink3)">＋ 貼上腳本連結 ✎</span>`}</div>
+            <div class="pf-row"><span class="pf-lbl">腳本</span>${p.brief_link?`<a class="dl-btn" href="${p.brief_link}" target="_blank">▷ 原始腳本</a><span class="editable" onclick="editBriefLink(\'${p.id}\',this)" style="font-size:11px;color:var(--ink3);margin-left:8px">編輯 ✎</span>`:`<span class="editable" onclick="editBriefLink(\'${p.id}\',this)" style="font-size:12px;color:var(--ink3)">＋ 貼上腳本連結 ✎</span>`}</div>
+            <div class="pf-row warn-bg"><span class="pf-lbl warn">下一步</span><textarea class="pf-inp" rows="1" placeholder="下一步行動…" onblur="saveProjField(\'${p.id}\',\'next_action\',this)">${e(p.next_action)}</textarea></div>
+            <div class="pf-row" style="flex-direction:column;align-items:flex-start;gap:8px;padding-top:10px;padding-bottom:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+                <span class="pf-lbl" style="color:var(--Gm)">互動紀錄</span>
+                <button class="add-btn" onclick="event.stopPropagation();prefillIntFromProj(\'${p.id}\',\'${p.client_code}\');openModal(\'modal-int\')" style="font-size:11px">＋ 新增</button>
+              </div>
+              <div style="width:100%;max-height:160px;overflow-y:auto">
+                ${getProjInts(p.client_code)}
+              </div>
+            </div>
           </div>
           ${pvids.length?`<div style="overflow-x:auto"><table class="vt">
             <thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead>
@@ -1858,9 +1888,24 @@ function saveEditClient(){
 }
 function prefillInteraction(code){
   $('ni-date').value=new Date().toISOString().split('T')[0];
-  // Set client then trigger cascade
   const niClient=$('ni-client');
   if(niClient)niClient.value=code;
+}
+
+function getProjInts(clientCode){
+  const ints=(DB.interactions||[]).filter(i=>i.client_code===clientCode).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  if(!ints.length) return '<div style="font-size:12px;color:var(--ink3);padding:4px 0">尚無互動紀錄</div>';
+  return ints.map(i=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(216,228,216,.3);font-size:12px">
+    <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:58px">${i.date}</span>
+    <span style="flex:1;color:var(--ink2)">${e(i.key_points)}</span>
+    <span class="sig sig-${i.signal}">${i.signal}</span>
+  </div>`).join('');
+}
+
+function prefillIntFromProj(pid, clientCode){
+  $('ni-date').value=new Date().toISOString().split('T')[0];
+  const niClient=$('ni-client');
+  if(niClient)niClient.value=clientCode;
 }
 
 // ══ SCRIPTS ═══════════════════════════════════════════════════════
@@ -2098,9 +2143,9 @@ function openAddVideo(pid){
 function saveNewProject(){
   const cc=$('np-client-code').value;if(!cc){alert('請選擇客戶');return;}
   const pid=$('np-id').value.trim()||'V-NEW-'+uid();
-  DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:$('np-notes').value.trim(),next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
+  DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:'',next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
   saveDB();closeModal('modal-proj');rD();rProd();updateCounts();toast('專案已建立');
-  ['np-id','np-period','np-count','np-shoot','np-est-delivery','np-delivery','np-brief','np-notes','np-action'].forEach(f=>$(f).value='');
+  ['np-id','np-period','np-count','np-shoot','np-est-delivery','np-delivery','np-brief','np-action'].forEach(f=>$(f).value='');
   $('np-client-code').value='';
 }
 
