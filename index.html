@@ -539,6 +539,10 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
             <button class="pill" onclick="fC('暫停',this)">暫停</button>
             <button class="pill" onclick="fC('結案',this)">結案</button>
           </div>
+          <div class="filter-row" style="gap:4px">
+            <button class="pill active" id="sort-btn-recent" onclick="setCRMSort('recent',this)">最近互動</button>
+            <button class="pill" id="sort-btn-code" onclick="setCRMSort('code',this)">客戶代號</button>
+          </div>
           <button class="icon-btn primary" onclick="openAddClient()">＋ 新增客戶</button>
         </div>
       </div>
@@ -1224,45 +1228,60 @@ function loadDB(){
   if(!localStorage.getItem(SK))saveDB(true);
 }
 
+// 標記某個集合有改動
+function markDirty(col){ dirtyCollections.add(col); }
+
 function saveDB(silent=false){
   clearTimeout(saveTimer);
+  // 只存到 localStorage，顯示「待儲存」狀態
+  try{ localStorage.setItem(SK,JSON.stringify(DB)); } catch(e){}
+  const dot=$('save-dot'),txt=$('save-txt'),btn=$('save-sheets-btn');
+  if(dot) dot.className='save-dot dirty';
+  if(txt) txt.textContent='有未儲存的變更';
+  if(btn) btn.style.display='flex';
+  if(!silent) {} // 不再顯示 toast，等手動確認
+}
+
+// 手動確認儲存到 Sheets
+async function confirmSaveToSheets(){
+  if(!USE_SHEETS){ toast('Sheets 未啟用'); return; }
+  if(!sheetsReady){ toast('⚠ Sheets 尚未載入，請稍後再試'); return; }
+
+  const btn=$('save-sheets-btn');
   const dot=$('save-dot'),txt=$('save-txt');
-  if(dot){dot.className='save-dot dirty';txt.textContent='儲存中…';}
-  saveTimer=setTimeout(async ()=>{
-    if(USE_SHEETS && !sheetsReady){
-      // Sheets 還沒載入完成，不寫入以免覆蓋正確資料
-      const dot=$('save-dot'),txt=$('save-txt');
-      if(dot)dot.className='save-dot ok';
-      if(txt)txt.textContent='載入中…';
+  if(btn){ btn.textContent='儲存中…'; btn.disabled=true; }
+  if(dot) dot.className='save-dot dirty';
+  if(txt) txt.textContent='推送到 Sheets…';
+
+  try{
+    const toPush=[...dirtyCollections];
+    if(toPush.length===0){
+      if(txt) txt.textContent='Sheets 已是最新';
+      if(dot) dot.className='save-dot ok';
+      if(btn){ btn.style.display='none'; btn.textContent='↑ 儲存到 Sheets'; btn.disabled=false; }
+      toast('無變更需要儲存');
       return;
     }
-    // 1. 存到 localStorage（即時）
-    try{ localStorage.setItem(SK,JSON.stringify(DB)); } catch(e){}
-    // 2. 推送到 Google Sheets（背景）
-    if(USE_SHEETS){
-      try{
-        const collections=['clients','projects','videos','scripts','interactions'];
-        await Promise.all(collections.map(col=>{
-          if(DB[col]&&DB[col].length>0){
-            return fetch(SHEETS_API,{
-              method:'POST',
-              body:JSON.stringify({action:'write_all',collection:col,data:DB[col]})
-            });
-          }
-        }));
-        if(dot){dot.className='save-dot ok';
-          txt.textContent='已同步 Sheets · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}
-      } catch(e){
-        console.warn('Sheets 寫入失敗:',e);
-        if(dot){dot.className='save-dot ok';
-          txt.textContent='已儲存（Sheets 離線）';}
+    await Promise.all(toPush.map(col=>{
+      if(DB[col]&&DB[col].length>0){
+        return fetch(SHEETS_API,{
+          method:'POST',
+          body:JSON.stringify({action:'write_all',collection:col,data:DB[col]})
+        });
       }
-    } else {
-      if(dot){dot.className='save-dot ok';
-        txt.textContent='已儲存 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});}
-    }
-    if(!silent)toast('已儲存');
-  },1200);
+    }));
+    dirtyCollections.clear();
+    if(dot) dot.className='save-dot ok';
+    if(txt) txt.textContent='已同步 Sheets · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    if(btn){ btn.style.display='none'; btn.textContent='↑ 儲存到 Sheets'; btn.disabled=false; }
+    toast('✓ 已儲存到 Google Sheets');
+  } catch(e){
+    console.warn('Sheets 儲存失敗:',e);
+    if(txt) txt.textContent='儲存失敗，請重試';
+    if(dot) dot.className='save-dot dirty';
+    if(btn){ btn.textContent='↑ 儲存到 Sheets'; btn.disabled=false; }
+    toast('⚠ Sheets 儲存失敗');
+  }
 }
 
 // ══ UTILS ═════════════════════════════════════════════════════════
@@ -1284,6 +1303,7 @@ function vsBadge(s){return s?`<span class="badge vs-${s}">${s}</span>`:'—';}
 
 let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='',fSClient='',fCRMSort='recent';
 let sheetsReady=false; // 防止 Sheets 載入前 saveDB 覆蓋資料
+const dirtyCollections=new Set(); // 只推送有改動的集合
 
 function toast(m,d=1800){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 
@@ -1320,13 +1340,14 @@ function editField(col,id,field,el){
   const sel=window.getSelection(),rng=document.createRange();
   rng.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rng);
   const key=col==='videos'?'video_id':col==='scripts'?'script_id':col==='payments'?'payment_id':'id';
-  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();const item=DB[col].find(x=>x[key]===id);if(item&&item[field]!==v){item[field]=v;saveDB();}};
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();const item=DB[col].find(x=>x[key]===id);if(item&&item[field]!==v){item[field]=v;markDirty(col);saveDB();}};
   el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}if(ev.key==='Escape')el.contentEditable='false';};
 }
 function changeVStatus(vid,sel,pid,ccode){
   const v=DB.videos.find(x=>x.video_id===vid);
   if(!v) return;
   v.status=sel.value;
+  markDirty('videos');
   if(sel.value==='已交付'&&!v.done_date){
     v.done_date=new Date().toISOString().split('T')[0];
     const row=sel.closest('tr');
@@ -1357,31 +1378,31 @@ function applyVSel(sel){
   sel.className='status-sel '+(cls[sel.value]||'');
 }
 function changeProjStage(pid,sel){
-  const p=DB.projects.find(x=>x.id===pid);if(p){p.stage=sel.value;saveDB();updateCounts();rD();}
+  const p=DB.projects.find(x=>x.id===pid);if(p){p.stage=sel.value;markDirty('projects');saveDB();updateCounts();rD();}
 }
 function changeProjPay(pid,sel){
-  const p=DB.projects.find(x=>x.id===pid);if(p){p.payment=sel.value;saveDB();updateCounts();rD();}
+  const p=DB.projects.find(x=>x.id===pid);if(p){p.payment=sel.value;markDirty('projects');saveDB();updateCounts();rD();}
 }
 function saveProjField(pid,field,el){
-  const p=DB.projects.find(x=>x.id===pid);if(p&&p[field]!==el.value){p[field]=el.value;saveDB();if(field==='next_action')rD();}
+  const p=DB.projects.find(x=>x.id===pid);if(p&&p[field]!==el.value){p[field]=el.value;markDirty('projects');saveDB();if(field==='next_action')rD();}
 }
-function saveVideoNote(vid,el){const v=DB.videos.find(x=>x.video_id===vid);if(v&&v.notes!==el.value){v.notes=el.value;saveDB();}}
+function saveVideoNote(vid,el){const v=DB.videos.find(x=>x.video_id===vid);if(v&&v.notes!==el.value){v.notes=el.value;markDirty('videos');saveDB();}}
 function editBriefLink(pid,el){
   el.contentEditable='true';const p=DB.projects.find(x=>x.id===pid);el.textContent=p?.brief_link||'';el.focus();
-  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.brief_link=v;saveDB();rProd();}};
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.brief_link=v;markDirty('projects');saveDB();rProd();}};
   el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}};
 }
 function editDeliveryLink(pid,el){
   el.contentEditable='true';const p=DB.projects.find(x=>x.id===pid);el.textContent=p?.delivery_link||'';el.focus();
-  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.delivery_link=v;saveDB();rProd();}};
+  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();if(p){p.delivery_link=v;markDirty('projects');saveDB();rProd();}};
   el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}};
 }
 function toggleConfirm(sid){
-  const s=DB.scripts.find(x=>x.script_id===sid);if(s){s.confirmed=!s.confirmed;saveDB();rS();}
+  const s=DB.scripts.find(x=>x.script_id===sid);if(s){s.confirmed=!s.confirmed;markDirty('scripts');saveDB();rS();}
 }
-function deleteVideo(vid){if(!confirm('確定刪除這支影片？'))return;DB.videos=DB.videos.filter(x=>x.video_id!==vid);saveDB();rProd();updateCounts();toast('已刪除影片');}
-function deleteProject(pid){if(!confirm('確定刪除這個專案？影片紀錄也會一併刪除。'))return;DB.projects=DB.projects.filter(x=>x.id!==pid);DB.videos=DB.videos.filter(x=>x.project_id!==pid);saveDB();rD();rProd();updateCounts();toast('已刪除專案');}
-function deleteInteraction(iid){DB.interactions=DB.interactions.filter(x=>x.id!==iid);saveDB();rD();rC();toast('已刪除');}
+function deleteVideo(vid){if(!confirm('確定刪除這支影片？'))return;DB.videos=DB.videos.filter(x=>x.video_id!==vid);markDirty('videos');saveDB();rProd();updateCounts();toast('已刪除影片');}
+function deleteProject(pid){if(!confirm('確定刪除這個專案？影片紀錄也會一併刪除。'))return;DB.projects=DB.projects.filter(x=>x.id!==pid);DB.videos=DB.videos.filter(x=>x.project_id!==pid);markDirty('projects');markDirty('videos');saveDB();rD();rProd();updateCounts();toast('已刪除專案');}
+function deleteInteraction(iid){DB.interactions=DB.interactions.filter(x=>x.id!==iid);markDirty('interactions');saveDB();rD();rC();toast('已刪除');}
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
 function rD(){
@@ -1728,6 +1749,7 @@ function addCartToProject(){
     added++;
   });
 
+  markDirty('videos');markDirty('scripts');
   saveDB();
   clearCart();
   rProd();
@@ -1979,7 +2001,7 @@ function saveEditClient(){
   c.name=$('ec-name').value.trim();c.contact=$('ec-contact').value.trim();
   c.title=$('ec-title').value.trim();c.social=$('ec-social').value.trim();
   c.status=$('ec-status').value;c.notes=$('ec-notes').value.trim();
-  saveDB();closeModal('modal-edit-client');rC();toast('客戶資料已更新');
+  markDirty('clients');saveDB();closeModal('modal-edit-client');rC();toast('客戶資料已更新');
 }
 function prefillInteraction(code){
   $('ni-date').value=new Date().toISOString().split('T')[0];
@@ -2251,7 +2273,7 @@ function saveNewProject(){
   const cc=$('np-client-code').value;if(!cc){alert('請選擇客戶');return;}
   const pid=$('np-id').value.trim()||'V-NEW-'+uid();
   DB.projects.push({id:pid,client_code:cc,period:$('np-period').value.trim(),video_count:$('np-count').value||'10',shoot_date:$('np-shoot').value,est_delivery:$('np-est-delivery').value,stage:$('np-stage').value,payment:$('np-pay').value,notes:'',next_action:$('np-action').value.trim(),delivery_link:$('np-delivery').value.trim(),brief_link:$('np-brief').value.trim()});
-  saveDB();closeModal('modal-proj');rD();rProd();updateCounts();toast('專案已建立');
+  markDirty('projects');saveDB();closeModal('modal-proj');rD();rProd();updateCounts();toast('專案已建立');
   ['np-id','np-period','np-count','np-shoot','np-est-delivery','np-delivery','np-brief','np-action'].forEach(f=>$(f).value='');
   $('np-client-code').value='';
 }
@@ -2267,7 +2289,7 @@ function saveNewVideo(){
     const s=DB.scripts.find(x=>x.script_id===selScript);
     if(s){s.video_id=newVid;s.project_id=pid;}
   }
-  saveDB();closeModal('modal-video');rProd();updateCounts();toast('影片已新增');
+  markDirty('videos');markDirty('scripts');saveDB();closeModal('modal-video');rProd();updateCounts();toast('影片已新增');
   ['nv-vid','nv-title','nv-editor','nv-done','nv-footage','nv-final','nv-link','nv-views','nv-notes'].forEach(f=>$(f).value='');
   const nvs=$('nv-script');if(nvs)nvs.selectedIndex=0;
 }
@@ -2276,21 +2298,21 @@ function saveNewInteraction(){
   const cc=$('ni-client').value;if(!cc){alert('請選擇客戶');return;}
   if(!$('ni-text').value.trim()){alert('請填入對話重點');return;}
   DB.interactions.push({id:'INT-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+uid(),date:$('ni-date').value,client_code:cc,channel:$('ni-ch').value,key_points:$('ni-text').value.trim(),signal:$('ni-sig').value,next_step:$('ni-next').value.trim()});
-  saveDB();closeModal('modal-int');rD();rC();rProd();toast('互動紀錄已儲存');
+  markDirty('interactions');saveDB();closeModal('modal-int');rD();rC();rProd();toast('互動紀錄已儲存');
   ['ni-text','ni-next'].forEach(f=>$(f).value='');
 }
 
 function saveNewClient(){
   if(!$('nc-name').value.trim()){alert('請填入店家名稱');return;}
   DB.clients.push({code:$('nc-code').value.trim()||'C'+uid(),name:$('nc-name').value.trim(),contact:$('nc-contact').value.trim(),title:$('nc-title').value.trim(),social:$('nc-social').value.trim(),status:$('nc-status').value,notes:$('nc-notes').value.trim(),token:genToken()});
-  saveDB();closeModal('modal-client');rC();updateCounts();toast('客戶已建立');
+  markDirty('clients');saveDB();closeModal('modal-client');rC();updateCounts();toast('客戶已建立');
   ['nc-code','nc-name','nc-contact','nc-title','nc-social','nc-notes'].forEach(f=>$(f).value='');
 }
 
 function saveNewScript(){
   if(!$('ns-title').value.trim()){alert('請填入標題');return;}
   DB.scripts.push({script_id:$('ns-id').value.trim()||'A'+uid(),video_id:$('ns-vid').value.trim(),project_id:$('ns-pid').value.trim(),category:$('ns-cat').value,sub_category:$('ns-subcat').value.trim(),title:$('ns-title').value.trim(),summary:$('ns-summary').value.trim(),outline:$('ns-outline').value.trim(),key_points:$('ns-keypoints').value.trim(),shoot_req:$('ns-shootreq').value.trim(),copywriting:'',external_link:$('ns-extlink').value.trim(),confirmed:$('ns-confirmed').value==='true',editor:$('ns-editor').value.trim()});
-  saveDB();closeModal('modal-script');rS();updateCounts();toast('腳本已新增');
+  markDirty('scripts');saveDB();closeModal('modal-script');rS();updateCounts();toast('腳本已新增');
   ['ns-id','ns-vid','ns-pid','ns-subcat','ns-title','ns-summary','ns-outline','ns-keypoints','ns-shootreq','ns-extlink','ns-editor'].forEach(f=>$(f).value='');
 
 }
@@ -2340,6 +2362,7 @@ function saveClientNotes(code, textarea){
   const c=DB.clients.find(x=>x.code===code);
   if(c && c.notes !== textarea.value){
     c.notes = textarea.value;
+    markDirty('clients');
     saveDB();
     toast('備註已儲存');
   }
@@ -2404,7 +2427,10 @@ function checkFinancePwd(){
 // ── CRM 排序切換 ──────────────────────────────────────────────────
 function setCRMSort(mode, btn){
   fCRMSort = mode;
-  document.querySelectorAll('#f-crm-sort .pill').forEach(p=>p.classList.remove('active'));
+  ['sort-btn-recent','sort-btn-code'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
   if(btn) btn.classList.add('active');
   rC();
 }
@@ -2500,6 +2526,7 @@ function saveRecurring(){
     });
     added++;
   }
+  markDirty('payments');
   saveDB();
   closeModal('modal-recurring');
   rPay();
@@ -2738,7 +2765,7 @@ function saveNewShoot(){
 function deleteShootDate(pid,iso){
   if(!confirm('確定移除這個拍攝日期？'))return;
   const p=DB.projects.find(x=>x.id===pid);
-  if(p){p.shoot_date='';saveDB();rSchMonth();rD();toast('已移除拍攝日期');}
+  if(p){p.shoot_date='';markDirty('projects');saveDB();rSchMonth();rD();toast('已移除拍攝日期');}
 }
 
 // ══ INIT ══════════════════════════════════════════════════════════
