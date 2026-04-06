@@ -1420,6 +1420,10 @@ function rD(){
 
 // ══ PRODUCTION ════════════════════════════════════════════════════
 function rProd(){
+  // 記住目前展開的狀態
+  const openClients=new Set([...document.querySelectorAll('.client-row.open')].map(el=>el.id));
+  const openProjs=new Set([...document.querySelectorAll('.proj-row.open')].map(el=>el.id));
+
   let projs=DB.projects.filter(p=>p.id);
   if(fProdv==='進行中')projs=projs.filter(p=>!['已交付','已結案'].includes(p.stage));
   if(fProdv==='已完成')projs=projs.filter(p=>p.stage==='已交付');
