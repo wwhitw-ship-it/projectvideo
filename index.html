@@ -465,6 +465,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
         <span class="save-dot" id="save-dot"></span>
         <span style="font-size:10px;color:rgba(255,255,255,.55);font-family:var(--mono);white-space:nowrap" id="save-txt">載入中</span>
         <button id="save-sheets-btn" onclick="confirmSaveToSheets()" style="display:none;background:#fff;color:var(--G);border:none;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--ff);white-space:nowrap">↑ 儲存到 Sheets</button>
+        <button onclick="clearCacheAndReload()" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--ff);white-space:nowrap" title="清除本地快取並重新從 Sheets 載入">⟳ 清除快取</button>
       </div>
       <div class="date-chip" id="today">—</div>
     </div>
@@ -1206,6 +1207,10 @@ async function loadFromSheets(){
       // 完整覆蓋 localStorage
       localStorage.setItem(SK, JSON.stringify(DB));
       sheetsReady=true;
+      // 清空 dirty 標記，Sheets 資料才是主，不讓舊快取被推回
+      dirtyCollections.clear();
+      const btn=$('save-sheets-btn');
+      if(btn) btn.style.display='none';
       if(txt)txt.textContent='Sheets 已同步 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
       if(dot)dot.className='save-dot ok';
       return true;
@@ -2506,6 +2511,15 @@ function openAddClient(){
   const el = $('nc-code');
   if(el) el.value = nextCode;
   openModal('modal-client');
+}
+
+
+// ── 清除快取並重新載入 ──────────────────────────────────────────
+function clearCacheAndReload(){
+  if(!confirm('清除本地快取並重新從 Sheets 載入？\n（你在主控台未儲存的變更會消失）')) return;
+  localStorage.removeItem(SK);
+  dirtyCollections.clear();
+  location.reload();
 }
 
 // ── 金流管理 → 直接開 Google Sheets ────────────────────────────
