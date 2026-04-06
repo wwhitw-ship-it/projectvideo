@@ -461,6 +461,11 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
         <input class="search" type="text" placeholder="搜尋…" id="qs" oninput="doSearch(this.value)">
         <span class="search-clear" id="search-clear" onclick="clearSearch()">×</span>
       </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span class="save-dot" id="save-dot"></span>
+        <span style="font-size:10px;color:rgba(255,255,255,.55);font-family:var(--mono);white-space:nowrap" id="save-txt">載入中</span>
+        <button id="save-sheets-btn" onclick="confirmSaveToSheets()" style="display:none;background:#fff;color:var(--G);border:none;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--ff);white-space:nowrap">↑ 儲存到 Sheets</button>
+      </div>
       <div class="date-chip" id="today">—</div>
     </div>
   </header>
