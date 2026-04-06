@@ -1173,6 +1173,7 @@ async function loadFromSheets(){
       DB.payments     = DB.payments            || [];
       // 完整覆蓋 localStorage
       localStorage.setItem(SK, JSON.stringify(DB));
+      sheetsReady=true;
       if(txt)txt.textContent='Sheets 已同步 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
       if(dot)dot.className='save-dot ok';
       return true;
@@ -1211,6 +1212,13 @@ function saveDB(silent=false){
   const dot=$('save-dot'),txt=$('save-txt');
   if(dot){dot.className='save-dot dirty';txt.textContent='儲存中…';}
   saveTimer=setTimeout(async ()=>{
+    if(USE_SHEETS && !sheetsReady){
+      // Sheets 還沒載入完成，不寫入以免覆蓋正確資料
+      const dot=$('save-dot'),txt=$('save-txt');
+      if(dot)dot.className='save-dot ok';
+      if(txt)txt.textContent='載入中…';
+      return;
+    }
     // 1. 存到 localStorage（即時）
     try{ localStorage.setItem(SK,JSON.stringify(DB)); } catch(e){}
     // 2. 推送到 Google Sheets（背景）
@@ -1258,6 +1266,7 @@ function payBadge(p){return p?`<span class="badge pay-${p}">${p}</span>`:'—';}
 function vsBadge(s){return s?`<span class="badge vs-${s}">${s}</span>`:'—';}
 
 let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='',fSClient='';
+let sheetsReady=false; // 防止 Sheets 載入前 saveDB 覆蓋資料
 
 function toast(m,d=1800){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 
