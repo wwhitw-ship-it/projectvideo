@@ -397,6 +397,23 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
 .scr-row.selected{background:#f5f0ff!important}
 .scr-row.selected td:first-child{background:#eeedfe}
 
+/* ── CLIENT CRM EXPAND ── */
+.ccard{cursor:pointer;transition:box-shadow .15s}
+.ccard:hover{box-shadow:0 2px 10px rgba(26,74,26,.1)}
+.ccard.open{box-shadow:0 2px 12px rgba(26,74,26,.12)}
+.ccard-detail{display:none;padding:0 16px 14px 16px;border-top:1px solid var(--border)}
+.ccard.open .ccard-detail{display:block}
+.ccard-section{margin-top:12px}
+.ccard-sec-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:600;margin-bottom:6px}
+.ccard-notes-edit{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-family:var(--ff);font-size:12px;color:var(--ink2);line-height:1.6;resize:vertical;outline:none;background:var(--Gw);min-height:60px;transition:border-color .15s}
+.ccard-notes-edit:focus{border-color:var(--G);background:#fafff8}
+.ccard-proj-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(216,228,216,.3);font-size:12px}
+.ccard-proj-row:last-child{border-bottom:none}
+.ccard-int-row{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(216,228,216,.3);font-size:12px;align-items:flex-start}
+.ccard-int-row:last-child{border-bottom:none}
+.ccard-chevron{font-size:13px;color:var(--ink3);transition:transform .2s;margin-left:4px;display:inline-block}
+.ccard.open .ccard-chevron{transform:rotate(90deg)}
+
 /* ── MISC ── */
 .nxt-tag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--warn);background:var(--warnbg);padding:2px 8px;border-radius:4px}
 .empty-state{text-align:center;padding:36px;color:var(--ink3);font-size:13px}
@@ -1872,30 +1889,71 @@ function rC(){
     const collab=DB.projects.filter(p=>p.client_code===c.code&&p.stage!=='洽談中').length;
     const cInts=DB.interactions.filter(i=>i.client_code===c.code).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
     const lastInt=cInts[0];
-    return `<div class="ccard" style="display:grid;grid-template-columns:3px 1fr auto;border-radius:10px;overflow:hidden;cursor:default" onclick="">
-      <div class="ccard-strip cs-${c.status}-strip" style="width:3px;align-self:stretch"></div>
-      <div style="padding:12px 16px;display:flex;align-items:center;gap:16px;flex:1;min-width:0">
-        <div style="flex:1;min-width:0">
+    const cid_key='ccard-'+c.code;
+    const clientProjs=DB.projects.filter(p=>p.client_code===c.code).sort((a,b)=>(b.shoot_date||'').localeCompare(a.shoot_date||''));
+    const allInts=DB.interactions.filter(i=>i.client_code===c.code).sort((a,b)=>b.date.localeCompare(a.date));
+
+    return `<div class="ccard" id="${cid_key}" style="border-radius:10px;overflow:hidden;background:var(--white);border:1px solid var(--border)" onclick="toggleCCard('${c.code}')">
+      <div style="display:grid;grid-template-columns:3px 1fr auto">
+        <div class="ccard-strip cs-${c.status}-strip" style="width:3px;align-self:stretch"></div>
+        <div style="padding:11px 16px;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">${c.code}</span>
             <span class="cn" style="font-size:14px">${e(c.name)}</span>
             <span class="badge cs-${c.status}" style="font-size:10px">${c.status}</span>
+            <span class="ccard-chevron">›</span>
           </div>
-          <div style="display:flex;gap:14px;margin-top:3px;flex-wrap:wrap">
+          <div style="display:flex;gap:12px;margin-top:3px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--ink3)">${c.contact||'—'}${c.title?' · '+e(c.title):''}</span>
             ${c.social?`<span style="font-size:11px;color:var(--Gm)">@${e(c.social)}</span>`:''}
             <span style="font-size:11px;color:var(--ink3)">合作 ${collab} 次</span>
+            ${lastInt?`<span style="font-size:11px;color:var(--ink3)">最近互動：${fd(lastInt.date)}</span>`:''}
           </div>
-          ${c.notes?`<div style="font-size:11px;color:var(--ink3);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:400px">${e(c.notes)}</div>`:''}
-          ${lastInt?`<div style="font-size:11px;color:var(--ink2);margin-top:4px;display:flex;gap:6px;align-items:center">
-            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">${fd(lastInt.date)}</span>
-            <span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:300px">${e(lastInt.key_points)}</span>
-            <span class="sig sig-${lastInt.signal}" style="font-size:10px;flex-shrink:0">${lastInt.signal}</span>
-          </div>`:''}
+        </div>
+        <div style="padding:11px 14px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
+          <button class="icon-btn" style="font-size:11px" onclick="openEditClient('${c.code}')">✎</button>
+          <button class="icon-btn" style="font-size:11px" onclick="prefillInteraction('${c.code}');openModal('modal-int')">＋ 互動</button>
         </div>
       </div>
-      <div style="padding:12px 14px;display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <button class="icon-btn" style="font-size:11px" onclick="openEditClient('${c.code}')">✎</button>
-        <button class="icon-btn" style="font-size:11px" onclick="prefillInteraction('${c.code}');openModal('modal-int')">＋ 互動</button>
+
+      <div class="ccard-detail">
+
+        <!-- 客戶說明書 -->
+        <div class="ccard-section">
+          <div class="ccard-sec-label">客戶說明書</div>
+          <textarea class="ccard-notes-edit" placeholder="記錄這個客戶的特性、偏好、注意事項…" onblur="saveClientNotes('${c.code}',this)" onclick="event.stopPropagation()">${e(c.notes)}</textarea>
+        </div>
+
+        <!-- 專案記錄 -->
+        <div class="ccard-section">
+          <div class="ccard-sec-label">專案記錄（${clientProjs.length} 個）</div>
+          ${clientProjs.length?clientProjs.map(p=>{
+            const pvids=DB.videos.filter(v=>v.project_id===p.id);
+            const done=pvids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
+            return `<div class="ccard-proj-row">
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:90px">${p.id}</span>
+              <span style="font-size:11px;color:var(--ink2);flex:1">第${p.period||'?'}期</span>
+              <span class="badge cs-${p.stage}" style="font-size:10px">${p.stage}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">${done}/${pvids.length}支</span>
+              <button class="icon-btn" style="font-size:10px;padding:2px 7px" onclick="event.stopPropagation();go('production');setTimeout(()=>{const cr=document.getElementById('cr-${p.client_code}');if(cr&&!cr.classList.contains('open'))toggleClient('cr-${p.client_code}');setTimeout(()=>{const pr=document.getElementById('pr-'+('${p.id}'.replace(/[^a-z0-9]/gi,'_')));if(pr&&!pr.classList.contains('open'))toggleProj('pr-'+('${p.id}'.replace(/[^a-z0-9]/gi,'_')));},150);},300)">→</button>
+            </div>`;
+          }).join(''):'<div style="font-size:12px;color:var(--ink3)">尚無專案</div>'}
+        </div>
+
+        <!-- 互動紀錄 -->
+        <div class="ccard-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span class="ccard-sec-label" style="margin-bottom:0">互動紀錄（${allInts.length} 筆）</span>
+            <button class="add-btn" style="font-size:11px" onclick="event.stopPropagation();prefillInteraction('${c.code}');openModal('modal-int')">＋ 新增</button>
+          </div>
+          ${allInts.length?allInts.slice(0,8).map(i=>`<div class="ccard-int-row">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:58px;flex-shrink:0">${fd(i.date)}</span>
+            <span style="font-size:11px;color:var(--ink3);min-width:28px;flex-shrink:0">${i.channel||''}</span>
+            <span style="flex:1;font-size:12px;color:var(--ink2);line-height:1.4">${e(i.key_points)}</span>
+            <span class="sig sig-${i.signal}" style="font-size:10px;flex-shrink:0">${i.signal}</span>
+          </div>`).join(''):'<div style="font-size:12px;color:var(--ink3)">尚無互動紀錄</div>'}
+        </div>
+
       </div>
     </div>`;
   }).join('')||'<div class="empty-state">無符合條件的客戶</div>';
@@ -2262,6 +2320,22 @@ function copyEditorViewLink(){
   });
 }
 
+
+
+// ── Client CRM 開合 ──────────────────────────────────────────────
+function toggleCCard(code){
+  const el=document.getElementById('ccard-'+code);
+  if(el) el.classList.toggle('open');
+}
+
+function saveClientNotes(code, textarea){
+  const c=DB.clients.find(x=>x.code===code);
+  if(c && c.notes !== textarea.value){
+    c.notes = textarea.value;
+    saveDB();
+    toast('備註已儲存');
+  }
+}
 
 // ── 複製客戶專屬連結 ────────────────────────────────────────────
 function genToken(){
