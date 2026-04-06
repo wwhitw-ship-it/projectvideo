@@ -405,7 +405,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
 .ccard.open .ccard-detail{display:block}
 .ccard-section{margin-top:12px}
 .ccard-sec-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--Gm);font-weight:600;margin-bottom:6px}
-.ccard-notes-edit{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-family:var(--ff);font-size:12px;color:var(--ink2);line-height:1.6;resize:vertical;outline:none;background:var(--Gw);min-height:60px;transition:border-color .15s}
+.ccard-notes-edit{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-family:var(--ff);font-size:12px;color:var(--ink2);line-height:1.6;resize:none;outline:none;background:var(--Gw);transition:border-color .15s;overflow:hidden}
 .ccard-notes-edit:focus{border-color:var(--G);background:#fafff8}
 .ccard-proj-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(216,228,216,.3);font-size:12px}
 .ccard-proj-row:last-child{border-bottom:none}
@@ -1291,7 +1291,7 @@ async function confirmSaveToSheets(){
 
 // ══ UTILS ═════════════════════════════════════════════════════════
 const $=id=>document.getElementById(id);
-const fd=d=>d?d.replace(/(\d{4})-(\d{2})-(\d{2}).*/,'$1.$2.$3'):'—';
+const fd=d=>{if(!d)return'—';const s=String(d);const m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'.'+m[2]+'.'+m[3];try{const dt=new Date(s);if(!isNaN(dt.getTime()))return dt.getFullYear()+'.'+(dt.getMonth()+1).toString().padStart(2,'0')+'.'+dt.getDate().toString().padStart(2,'0');}catch(ex){}return s.slice(0,10)||'—';};
 const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const uid=()=>Math.random().toString(36).slice(2,9);
 const clientName=code=>DB.clients.find(c=>c.code===code)?.name||code||'—';
@@ -1953,7 +1953,7 @@ function rC(){
         <!-- 客戶說明書 -->
         <div class="ccard-section">
           <div class="ccard-sec-label">客戶說明書</div>
-          <textarea class="ccard-notes-edit" placeholder="記錄這個客戶的特性、偏好、注意事項…" onblur="saveClientNotes('${c.code}',this)" onclick="event.stopPropagation()">${e(c.notes)}</textarea>
+          <textarea class="ccard-notes-edit" placeholder="記錄這個客戶的特性、偏好、注意事項…" onblur="saveClientNotes('${c.code}',this)" onclick="event.stopPropagation()" oninput="autoResize(this)" style="min-height:0;overflow:hidden">${e(c.notes)}</textarea>
         </div>
 
         <!-- 專案記錄 -->
@@ -2358,9 +2358,21 @@ function copyEditorViewLink(){
 
 
 // ── Client CRM 開合 ──────────────────────────────────────────────
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=el.scrollHeight+'px';
+}
+
 function toggleCCard(code){
   const el=document.getElementById('ccard-'+code);
-  if(el) el.classList.toggle('open');
+  if(el){
+    el.classList.toggle('open');
+    // Auto-resize notes textarea after open
+    setTimeout(()=>{
+      const ta=el.querySelector('.ccard-notes-edit');
+      if(ta)autoResize(ta);
+    },50);
+  }
 }
 
 function saveClientNotes(code, textarea){
