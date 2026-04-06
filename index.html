@@ -1186,12 +1186,17 @@ async function loadFromSheets(){
     const json = await res.json();
     if(json.ok && json.data){
       // Sheets 永遠是主，完整覆蓋 DB
+      // 正規化所有日期欄位為 YYYY-MM-DD 格式
+      const fixDates=(arr,fields)=>arr.map(r=>{
+        fields.forEach(f=>{if(r[f]){const m=String(r[f]).match(/(\d{4})-(\d{2})-(\d{2})/);r[f]=m?m[0]:r[f];}});
+        return r;
+      });
       DB.clients      = json.data.clients      || [];
-      DB.projects     = json.data.projects     || [];
-      DB.videos       = json.data.videos       || [];
+      DB.projects     = fixDates(json.data.projects||[],['shoot_date','est_delivery']);
+      DB.videos       = fixDates(json.data.videos||[],['done_date']);
       DB.scripts      = json.data.scripts      || [];
-      DB.interactions = json.data.interactions || [];
-      DB.payments     = DB.payments            || [];
+      DB.interactions = fixDates(json.data.interactions||[],['date']);
+      DB.payments     = fixDates(json.data.payments||DB.payments||[],['due_date','paid_date']);
       // 完整覆蓋 localStorage
       localStorage.setItem(SK, JSON.stringify(DB));
       sheetsReady=true;
@@ -1515,7 +1520,7 @@ function rProd(){
           </td>
           <td class="ec"><select class="status-sel ${cls}" onchange="changeVStatus('${v.video_id}',this,'${p.id}','${p.client_code}')" onclick="event.stopPropagation()">${opts}</select></td>
           <td class="ec"><span class="editable" onclick="editField('videos','${v.video_id}','editor',this)" style="font-size:12px;font-weight:700;color:var(--Gm)">${e(v.editor)||'—'}<span class="edit-hint">✎</span></span></td>
-          <td><span class="done-date-cell" style="font-family:var(--mono);font-size:11px;color:${v.done_date?'var(--Gm)':'var(--ink3)'}">${v.done_date||'—'}</span></td>
+          <td><span class="done-date-cell" style="font-family:var(--mono);font-size:11px;color:${v.done_date?'var(--Gm)':'var(--ink3)'}">${fd(v.done_date)||'—'}</span></td>
           <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','footage_link',this)" title="${e(v.footage_link)}">${v.footage_link?`<a href="${v.footage_link}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--blue);text-decoration:none;padding:2px 6px;background:var(--bluebg);border-radius:4px">▷ 素材</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
           <td class="ec"><span class="editable link-edit" onclick="editField('videos','${v.video_id}','final_link',this)" title="${e(v.final_link)}">${v.final_link?`<a href="${v.final_link}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--Gm);text-decoration:none;padding:2px 6px;background:var(--Gp);border-radius:4px">▷ 完成檔</a>`:'<span style="font-size:11px;color:var(--ink3)">＋ 連結</span>'}<span class="edit-hint">✎</span></span></td>
           <td class="ec" style="max-width:120px" onclick="event.stopPropagation()">
@@ -2013,7 +2018,7 @@ function getProjInts(clientCode){
   const ints=(DB.interactions||[]).filter(i=>i.client_code===clientCode).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
   if(!ints.length) return '<div style="font-size:12px;color:var(--ink3);padding:4px 0">尚無互動紀錄</div>';
   return ints.map(i=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(216,228,216,.3);font-size:12px">
-    <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:58px">${i.date}</span>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:58px">${fd(i.date)}</span>
     <span style="flex:1;color:var(--ink2)">${e(i.key_points)}</span>
     <span class="sig sig-${i.signal}">${i.signal}</span>
   </div>`).join('');
@@ -2771,21 +2776,29 @@ function deleteShootDate(pid,iso){
 // ══ INIT ══════════════════════════════════════════════════════════
 window.addEventListener('load',async ()=>{
   if(USE_SHEETS){
-    // Sheets 模式：清掉所有舊快取，等 Sheets 資料回來再渲染
-    localStorage.removeItem(SK);
-    DB={clients:[],projects:[],videos:[],scripts:[],interactions:[],payments:[]};
-
-    // 顯示載入中畫面
-    const dot=$('save-dot'),txt=$('save-txt');
-    if(txt) txt.textContent='從 Sheets 載入中…';
-    if(dot) dot.className='save-dot dirty';
-
-    const ok=await loadFromSheets();
+    // 方案 A：先用 localStorage 快速顯示，背景從 Sheets 拉新資料
+    const cached = localStorage.getItem(SK);
+    if(cached){
+      try{
+        DB = JSON.parse(cached);
+        updateCounts();rD();rC();rS();if(typeof rProd==='function')rProd();
+        const dot=$('save-dot'),txt=$('save-txt');
+        if(txt) txt.textContent='更新中…';
+        if(dot) dot.className='save-dot dirty';
+      } catch(e){ DB={clients:[],projects:[],videos:[],scripts:[],interactions:[],payments:[]}; }
+    } else {
+      // 沒有快取，顯示載入中
+      const dot=$('save-dot'),txt=$('save-txt');
+      if(txt) txt.textContent='從 Sheets 載入中…';
+      if(dot) dot.className='save-dot dirty';
+    }
+    // 背景從 Sheets 拉最新資料
+    const ok = await loadFromSheets();
     if(ok){
       updateCounts();rD();rC();rS();if(typeof rProd==='function')rProd();
     } else {
-      // Sheets 讀取失敗，顯示空白狀態，不用示範資料
-      if(txt) txt.textContent='⚠ 無法連線 Sheets，請重新整理';
+      const dot=$('save-dot'),txt=$('save-txt');
+      if(txt) txt.textContent= cached ? '離線模式（顯示快取）' : '⚠ 無法連線 Sheets，請重新整理';
       if(dot) dot.className='save-dot dirty';
     }
   } else {
