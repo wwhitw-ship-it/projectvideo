@@ -1506,7 +1506,8 @@ function rProd(){
     const projRows=g.projects.map(p=>{
       const pvids=DB.videos.filter(v=>v.project_id===p.id&&(!fEditor||v.editor===fEditor));
 
-      const _latPer=periods.length?periods[periods.length-1]:'';
+      const _periods=[...new Set(pvids.map(v=>v.period||'').filter(Boolean))].sort();
+      const _latPer=_periods.length?_periods[_periods.length-1]:'';
       const _progVids=_latPer?pvids.filter(v=>v.period===_latPer):pvids;
       const pdone=_progVids.filter(v=>['已交付','已歸檔'].includes(v.status)).length;
       const ptotalProg=_progVids.length||parseInt(p.video_count)||0;
