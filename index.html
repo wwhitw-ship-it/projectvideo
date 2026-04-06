@@ -214,7 +214,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
 .add-btn:hover{border-color:var(--Gm);color:var(--G);background:var(--Gp)}
 
 /* ── CLIENT CARDS ── */
-.client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-bottom:20px}
+.client-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
 .ccard{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .15s}
 .ccard:hover{border-color:var(--Gm);transform:translateY(-1px)}
 .ccard-strip{height:3px}
@@ -541,6 +541,9 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
             <button class="pill" onclick="fS('日常',this)">日常</button>
             <button class="pill" onclick="fS('未確認',this)">未確認</button>
           </div>
+          <select id="scr-client-filter" class="edit-sel" onchange="onScrClientFilter(this.value)" style="font-size:12px;padding:5px 10px;border-radius:7px">
+            <option value="">全部客戶</option>
+          </select>
           <button class="icon-btn primary" onclick="openModal('modal-script')">＋ 新增腳本</button>
         </div>
       </div>
@@ -1253,7 +1256,7 @@ function stageBadge(s){return s?`<span class="badge st-${s}">${s}</span>`:'—';
 function payBadge(p){return p?`<span class="badge pay-${p}">${p}</span>`:'—';}
 function vsBadge(s){return s?`<span class="badge vs-${s}">${s}</span>`:'—';}
 
-let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='';
+let fDv='all',fProdv='all',fCv='all',fSv='all',fPayv='all',q='',fEditor='',fSClient='';
 
 function toast(m,d=1800){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 
@@ -1396,7 +1399,7 @@ function rD(){
     :'<div style="font-size:13px;color:var(--ink3)">目前無待辦行動 ✓</div>';
 
   // Interactions
-  const ints=[...DB.interactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  const ints=[...(DB.interactions||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   $('dash-ints').innerHTML=ints.map(i=>`
     <div class="panel-row" style="background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;gap:6px">
       <div style="min-width:70px"><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">${fd(i.date)}</div><div style="font-size:10px;color:var(--Gm);font-weight:700;margin-top:1px">${i.channel}</div></div>
@@ -1603,6 +1606,13 @@ function calcDeliveryDate(shootDate){
 
 
 // ── 新增影片時選腳本 → 自動帶入標題和影片編號 ──────────────────
+function onScrClientFilter(val){
+  fSClient=val;
+  // Reset cart when filter changes
+  clearCart();
+  rS();
+}
+
 function onVideoScriptChange(){
   const sid = $('nv-script').value;
   if(!sid){ return; }
@@ -1849,24 +1859,31 @@ function rC(){
   $('cg').innerHTML=cs.map(c=>{
     const collab=DB.projects.filter(p=>p.client_code===c.code&&p.stage!=='洽談中').length;
     const cInts=DB.interactions.filter(i=>i.client_code===c.code).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
-    return `<div class="ccard">
-      <div class="ccard-strip cs-${c.status}-strip"></div>
-      <div class="ccard-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-          <div><div class="cn">${e(c.name)}</div><div class="cc">${c.code} · ${c.title||'—'}</div></div>
-          <span class="badge cs-${c.status}">${c.status}</span>
+    const lastInt=cInts[0];
+    return `<div class="ccard" style="display:grid;grid-template-columns:3px 1fr auto;border-radius:10px;overflow:hidden;cursor:default" onclick="">
+      <div class="ccard-strip cs-${c.status}-strip" style="width:3px;align-self:stretch"></div>
+      <div style="padding:12px 16px;display:flex;align-items:center;gap:16px;flex:1;min-width:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="cn" style="font-size:14px">${e(c.name)}</span>
+            <span class="badge cs-${c.status}" style="font-size:10px">${c.status}</span>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:3px;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--ink3)">${c.contact||'—'}${c.title?' · '+e(c.title):''}</span>
+            ${c.social?`<span style="font-size:11px;color:var(--Gm)">@${e(c.social)}</span>`:''}
+            <span style="font-size:11px;color:var(--ink3)">合作 ${collab} 次</span>
+          </div>
+          ${c.notes?`<div style="font-size:11px;color:var(--ink3);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:400px">${e(c.notes)}</div>`:''}
+          ${lastInt?`<div style="font-size:11px;color:var(--ink2);margin-top:4px;display:flex;gap:6px;align-items:center">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3)">${fd(lastInt.date)}</span>
+            <span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:300px">${e(lastInt.key_points)}</span>
+            <span class="sig sig-${lastInt.signal}" style="font-size:10px;flex-shrink:0">${lastInt.signal}</span>
+          </div>`:''}
         </div>
-        <div class="ccard-meta">
-          <div><div class="ml">聯絡人</div><div class="mv">${c.contact||'—'}</div></div>
-          <div><div class="ml">合作次數</div><div class="mv">${collab} 次</div></div>
-          <div style="grid-column:1/-1"><div class="ml">社群</div><div class="mv" style="font-size:12px;color:var(--Gm)">@${c.social||'—'}</div></div>
-        </div>
-        ${c.notes?`<div class="ccard-note">${e(c.notes)}</div>`:''}
-        ${cInts.length?`<div class="ccard-ints"><div class="ci-label">最近互動</div>${cInts.map(i=>`<div class="ci-row"><span class="ci-date">${fd(i.date)}</span><span class="ci-text">${e(i.key_points)}</span><span class="sig sig-${i.signal}">${i.signal}</span></div>`).join('')}</div>`:''}
-        <div class="ccard-actions">
-          <button class="icon-btn" style="font-size:11px;flex:1;justify-content:center" onclick="openEditClient('${c.code}')">✎ 編輯</button>
-          <button class="icon-btn" style="font-size:11px;flex:1;justify-content:center" onclick="prefillInteraction('${c.code}');openModal('modal-int')">＋ 互動</button>
-        </div>
+      </div>
+      <div style="padding:12px 14px;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button class="icon-btn" style="font-size:11px" onclick="openEditClient('${c.code}')">✎</button>
+        <button class="icon-btn" style="font-size:11px" onclick="prefillInteraction('${c.code}');openModal('modal-int')">＋ 互動</button>
       </div>
     </div>`;
   }).join('')||'<div class="empty-state">無符合條件的客戶</div>';
@@ -1910,7 +1927,19 @@ function prefillIntFromProj(pid, clientCode){
 
 // ══ SCRIPTS ═══════════════════════════════════════════════════════
 function rS(){
+  // Populate client dropdown
+  const scrCF=$('scr-client-filter');
+  if(scrCF&&scrCF.options.length<=1){
+    scrCF.innerHTML='<option value="">全部客戶</option>'+
+      DB.clients.map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
+    if(fSClient) scrCF.value=fSClient;
+  }
   let ss=DB.scripts;
+  // Filter by client
+  if(fSClient){
+    const projIds=DB.projects.filter(p=>p.client_code===fSClient).map(p=>p.id);
+    ss=ss.filter(s=>projIds.includes(s.project_id));
+  }
   if(fSv==='未確認')ss=ss.filter(s=>!s.confirmed);
   else if(fSv!=='all')ss=ss.filter(s=>s.category===s.category&&s.category===fSv);
   if(fSv==='未確認')ss=DB.scripts.filter(s=>!s.confirmed);
@@ -2169,7 +2198,7 @@ function saveNewInteraction(){
   const cc=$('ni-client').value;if(!cc){alert('請選擇客戶');return;}
   if(!$('ni-text').value.trim()){alert('請填入對話重點');return;}
   DB.interactions.push({id:'INT-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+uid(),date:$('ni-date').value,client_code:cc,channel:$('ni-ch').value,key_points:$('ni-text').value.trim(),signal:$('ni-sig').value,next_step:$('ni-next').value.trim()});
-  saveDB();closeModal('modal-int');rD();rC();toast('互動紀錄已儲存');
+  saveDB();closeModal('modal-int');rD();rC();rProd();toast('互動紀錄已儲存');
   ['ni-text','ni-next'].forEach(f=>$(f).value='');
 }
 
