@@ -1575,7 +1575,7 @@ function rProd(){
               `<tbody id="${pgid}" style="display:${isLatest?'table-row-group':'none'}">${_renderVids(pv)}</tbody>`
             ].join('');
           }).join('')
-        :_renderVids(pvids);
+        :`<tbody>${_renderVids(pvids)}</tbody>`;
 
       return `<div class="proj-row" id="${pid}">
         <div class="proj-header" onclick="toggleProj('${pid}')">
@@ -1623,7 +1623,7 @@ function rProd(){
           </div>
           ${pvids.length?`<div style="overflow-x:auto"><table class="vt">
             <thead><tr><th>#</th><th>影片標題</th><th style="background:#faf0ff">腳本</th><th style="background:#eaffea">狀態 ✎</th><th style="background:#eaffea">剪輯師 ✎</th><th style="background:#eaffea">完成日</th><th style="background:#eaf3ff">素材</th><th style="background:#eaf3ff">完成檔</th><th style="background:#eaffea">備註 ✎</th><th style="background:#eaffea">觀看數 ✎</th><th>發布連結 ✎</th><th></th></tr></thead>
-            <tbody>${videoRows}</tbody></table></div>`:`<div style="padding:12px 18px 12px 44px;color:var(--ink3);font-size:12px">尚無影片紀錄</div>`}
+            ${videoRows}</table></div>`:`<div style="padding:12px 18px 12px 44px;color:var(--ink3);font-size:12px">尚無影片紀錄</div>`}
           <div class="vp-add">
             <button class="add-btn" onclick="openAddVideo('${p.id}')">＋ 新增影片</button>
             <button class="icon-btn danger" style="font-size:11px;margin-left:8px" onclick="deleteProject('${p.id}')">刪除專案</button>
