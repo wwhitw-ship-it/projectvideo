@@ -588,7 +588,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
       </div>
 
       <div class="tbox"><table>
-        <thead><tr><th></th><th>腳本編號</th><th>標題</th><th>專案</th><th>類別</th><th>摘要</th><th>確認</th><th>剪輯師 ✎</th></tr></thead>
+        <thead><tr><th></th><th>腳本編號</th><th>標題</th><th>專案</th><th>類別</th><th>摘要</th><th>確認</th></tr></thead>
         <tbody id="tb-s"></tbody>
       </table></div>
     </div>
@@ -952,7 +952,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
     <div class="fr"><label>拍攝需求</label><textarea id="ns-shootreq" placeholder="需要準備的道具、場景、角度…" rows="2"></textarea></div>
     <div class="fr"><label>圖像示意連結</label><input id="ns-extlink" placeholder="參考資料、靈感來源連結…"></div>
     <div class="f2">
-      <div class="fr"><label>剪輯師</label><input id="ns-editor" placeholder="阿甫"></div>
+      
       <div class="fr"><label>客戶確認</label>
         <select id="ns-confirmed"><option value="false">待確認</option><option value="true">已確認</option></select>
       </div>
@@ -2076,9 +2076,7 @@ function rS(){
       <td><div class="cm" style="max-width:180px">${e(s.title)}</div><div class="cs">${s.video_id||'—'}</div></td>
       <td><div style="font-size:12px;font-weight:600">${e(cname)}</div><div class="cs">${s.project_id||'—'}</div></td>
       <td><span class="cat-chip cat-${s.category}">${s.category}</span>${s.sub_category?`<span style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:5px">${s.sub_category}</span>`:''}</td>
-      <td><div style="font-size:12px;color:var(--ink2);max-width:160px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${e(s.summary)}</div></td>
-      <td onclick="event.stopPropagation()"><button class="confirm-btn ${s.confirmed?'yes':'no'}" onclick="toggleConfirm('${s.script_id}')">${s.confirmed?'✓ 確認':'待確認'}</button></td>
-      <td class="editable-cell" onclick="event.stopPropagation()"><span class="editable" onclick="editField('scripts','${s.script_id}','editor',this)" style="font-size:12px;font-weight:700;color:var(--Gm)">${e(s.editor)||'—'}<span class="edit-hint">✎</span></span></td>
+      
     </tr>
     <tr class="scr-detail" id="sd-${sid}"><td colspan="8">
       <div class="scr-detail-inner">
@@ -2328,9 +2326,9 @@ function saveNewClient(){
 
 function saveNewScript(){
   if(!$('ns-title').value.trim()){alert('請填入標題');return;}
-  DB.scripts.push({script_id:$('ns-id').value.trim()||'A'+uid(),video_id:$('ns-vid').value.trim(),project_id:$('ns-pid').value.trim(),category:$('ns-cat').value,sub_category:$('ns-subcat').value.trim(),title:$('ns-title').value.trim(),summary:$('ns-summary').value.trim(),outline:$('ns-outline').value.trim(),key_points:$('ns-keypoints').value.trim(),shoot_req:$('ns-shootreq').value.trim(),copywriting:'',external_link:$('ns-extlink').value.trim(),confirmed:$('ns-confirmed').value==='true',editor:$('ns-editor').value.trim()});
+  DB.scripts.push({script_id:$('ns-id').value.trim()||'A'+uid(),video_id:$('ns-vid').value.trim(),project_id:$('ns-pid').value.trim(),category:$('ns-cat').value,sub_category:$('ns-subcat').value.trim(),title:$('ns-title').value.trim(),summary:$('ns-summary').value.trim(),outline:$('ns-outline').value.trim(),key_points:$('ns-keypoints').value.trim(),shoot_req:$('ns-shootreq').value.trim(),copywriting:'',external_link:$('ns-extlink').value.trim(),confirmed:$('ns-confirmed').value==='true',editor:''});
   markDirty('scripts');saveDB();closeModal('modal-script');rS();updateCounts();toast('腳本已新增');
-  ['ns-id','ns-vid','ns-pid','ns-subcat','ns-title','ns-summary','ns-outline','ns-keypoints','ns-shootreq','ns-extlink','ns-editor'].forEach(f=>$(f).value='');
+  ['ns-id','ns-vid','ns-pid','ns-subcat','ns-title','ns-summary','ns-outline','ns-keypoints','ns-shootreq','ns-extlink'].forEach(f=>$(f).value='');
 
 }
 
