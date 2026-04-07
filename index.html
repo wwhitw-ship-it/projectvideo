@@ -1358,7 +1358,24 @@ function editField(col,id,field,el){
   const sel=window.getSelection(),rng=document.createRange();
   rng.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rng);
   const key=col==='videos'?'video_id':col==='scripts'?'script_id':col==='payments'?'payment_id':'id';
-  el.onblur=()=>{el.contentEditable='false';const v=el.textContent.trim();const item=DB[col].find(x=>x[key]===id);if(item&&item[field]!==v){item[field]=v;markDirty(col);saveDB();}};
+  el.onblur=()=>{
+    el.contentEditable='false';
+    const v=el.textContent.trim();
+    const item=DB[col].find(x=>x[key]===id);
+    if(item&&item[field]!==v){
+      item[field]=v;
+      markDirty(col);
+      saveDB();
+      // 如果是連結欄位，直接把 td 換成連結樣式
+      if(v && ['footage_link','final_link','publish_link'].includes(field)){
+        const td=el.closest('td');
+        if(td){
+          const label=field==='footage_link'?'▷ 素材':field==='final_link'?'▷ 完成檔':'▷ 發布';
+          td.innerHTML=`<a href="${v}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-weight:700;color:var(--Gm);text-decoration:none">${label}</a>`;
+        }
+      }
+    }
+  };
   el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}if(ev.key==='Escape')el.contentEditable='false';};
 }
 function changeVStatus(vid,sel,pid,ccode){
