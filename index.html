@@ -1480,6 +1480,7 @@ function rProd(){
   const openClients=new Set([...document.querySelectorAll('.client-row.open')].map(el=>el.id));
   const openProjs=new Set([...document.querySelectorAll('.proj-row.open')].map(el=>el.id));
 
+  if(!DB.projects||!DB.videos) return;
   let projs=DB.projects.filter(p=>p.id);
   if(fProdv==='進行中')projs=projs.filter(p=>!['已交付','已結案'].includes(p.stage));
   if(fProdv==='已完成')projs=projs.filter(p=>p.stage==='已交付');
@@ -1534,7 +1535,7 @@ function rProd(){
                 <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
                   <div style="height:100%;width:${ppct}%;background:${pclr};border-radius:2px;transition:width .4s"></div>
                 </div>
-                <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${ptotal} 支</span>
+                <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${pclr};white-space:nowrap">${pdone}/${ptotalProg} 支</span>
               </div>`:'<div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:4px">尚無影片紀錄</div>'}
             </div>
           </div>
