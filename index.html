@@ -686,7 +686,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
 
     <!-- 外部連結 -->
     <div style="margin-bottom:16px">
-      <div class="sv-field-label">外部連結</div>
+      <div class="sv-field-label">圖像示意</div>
       <div class="sv-field-box" id="sv-extlink">—</div>
     </div>
 
@@ -950,7 +950,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
     <div class="fr"><label>腳本大綱</label><textarea id="ns-outline" placeholder="起承轉合的腳本結構…" rows="4"></textarea></div>
     <div class="fr"><label>重點乾貨</label><textarea id="ns-keypoints" placeholder="影片中要傳遞的關鍵資訊…" rows="3"></textarea></div>
     <div class="fr"><label>拍攝需求</label><textarea id="ns-shootreq" placeholder="需要準備的道具、場景、角度…" rows="2"></textarea></div>
-    <div class="fr"><label>外部連結</label><input id="ns-extlink" placeholder="參考資料、靈感來源連結…"></div>
+    <div class="fr"><label>圖像示意連結</label><input id="ns-extlink" placeholder="參考資料、靈感來源連結…"></div>
     <div class="f2">
       <div class="fr"><label>剪輯師</label><input id="ns-editor" placeholder="阿甫"></div>
       <div class="fr"><label>客戶確認</label>
@@ -2109,7 +2109,7 @@ function rS(){
         </div>
 
         <div class="scr-field">
-          <div class="scr-field-label">外部連結 ✎</div>
+          <div class="scr-field-label">圖像示意 ✎</div>
           <input class="scr-edit-input" type="url" value="${e(s.external_link)}" onblur="saveScriptField('${s.script_id}','external_link',this)" placeholder="https://…">
           ${s.external_link?`<a href="${s.external_link}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;margin-top:4px">▷ 開啟連結</a>`:''}
         </div>
