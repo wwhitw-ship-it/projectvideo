@@ -1200,12 +1200,14 @@ async function loadFromSheets(){
         fields.forEach(f=>{if(r[f]){const m=String(r[f]).match(/(\d{4})-(\d{2})-(\d{2})/);r[f]=m?m[0]:r[f];}});
         return r;
       });
-      DB.clients      = json.data.clients      || [];
-      DB.projects     = fixDates(json.data.projects||[],['shoot_date','est_delivery']);
-      DB.videos       = fixDates(json.data.videos||[],['done_date']);
-      DB.scripts      = json.data.scripts      || [];
-      DB.interactions = fixDates(json.data.interactions||[],['date']);
-      DB.payments     = fixDates(json.data.payments||DB.payments||[],['due_date','paid_date']);
+      // 去重函式
+      const dedup=(arr,pk)=>{const seen=new Set();return(arr||[]).filter(r=>{const k=r[pk];if(!k||seen.has(k))return false;seen.add(k);return true;});};
+      DB.clients      = dedup(json.data.clients,'code');
+      DB.projects     = dedup(fixDates(json.data.projects||[],['shoot_date','est_delivery']),'id');
+      DB.videos       = dedup(fixDates(json.data.videos||[],['done_date']),'video_id');
+      DB.scripts      = dedup(json.data.scripts,'script_id');
+      DB.interactions = dedup(fixDates(json.data.interactions||[],['date']),'id');
+      DB.payments     = dedup(fixDates(json.data.payments||DB.payments||[],['due_date','paid_date']),'payment_id');
       // 完整覆蓋 localStorage
       localStorage.setItem(SK, JSON.stringify(DB));
       sheetsReady=true;
@@ -2488,6 +2490,43 @@ function checkFinancePwd(){
 }
 
 
+
+
+// ── 腳本查閱彈窗 ───────────────────────────────────────────────
+function openScriptPopup(sid){
+  const s=DB.scripts.find(x=>x.script_id===sid);
+  if(!s){ toast('找不到腳本資料'); return; }
+
+  const nl2br=t=>t?String(t).replace(/\\n/g,'<br>').replace(/\n/g,'<br>'):''
+
+  // Fill modal fields
+  const set=(id,val)=>{const el=$(id);if(el)el.innerHTML=val||'—';};
+  set('sv-id', s.script_id);
+  set('sv-title', e(s.title));
+  set('sv-summary', e(s.summary));
+  set('sv-outline', nl2br(s.outline));
+  set('sv-keypoints', nl2br(s.key_points||s.key_points));
+
+  // Tags
+  const tags=$('sv-tags');
+  if(tags){
+    tags.innerHTML=[s.category,s.sub_category].filter(Boolean)
+      .map(t=>`<span style="font-size:11px;background:var(--Gp);color:var(--G);padding:2px 8px;border-radius:10px">${e(t)}</span>`)
+      .join('');
+  }
+
+  // External link
+  const svLink=$('sv-extlink');
+  if(svLink) svLink.innerHTML=s.external_link
+    ?`<a href="${s.external_link}" target="_blank" style="color:var(--Gm)">${s.external_link}</a>`
+    :'—';
+
+  // Confirmed status
+  const svConfirm=$('sv-confirm');
+  if(svConfirm) svConfirm.textContent=s.confirmed==='TRUE'||s.confirmed===true?'✓ 已確認':'未確認';
+
+  openModal('modal-script-view');
+}
 
 // ── CRM 排序切換 ──────────────────────────────────────────────────
 function setCRMSort(mode, btn){
