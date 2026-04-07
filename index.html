@@ -1369,7 +1369,13 @@ function changeVStatus(vid,sel,pid,ccode){
   if(sel.value==='已交付'&&!v.done_date){
     v.done_date=new Date().toISOString().split('T')[0];
     const row=sel.closest('tr');
-    if(row){const dc=row.querySelector('.done-date-cell');if(dc)dc.textContent=v.done_date;}
+    if(row){
+      const dc=row.querySelector('.done-date-cell');
+      if(dc){
+        dc.textContent=fd(v.done_date);
+        dc.style.color='var(--Gm)';
+      }
+    }
   }
   applyVSel(sel);
   saveDB();
