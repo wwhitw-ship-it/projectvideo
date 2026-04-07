@@ -573,7 +573,7 @@ tr:hover .edit-hint,.dproject:hover .edit-hint{opacity:.5}
           <select id="scr-client-filter" class="edit-sel" onchange="onScrClientFilter(this.value)" style="font-size:12px;padding:5px 10px;border-radius:7px">
             <option value="">全部客戶</option>
           </select>
-          <button class="icon-btn primary" onclick="openModal('modal-script')">＋ 新增腳本</button>
+          <button class="icon-btn primary" onclick="openAddScript()">＋ 新增腳本</button>
         </div>
       </div>
       <!-- 購物車狀態列 -->
@@ -1715,16 +1715,16 @@ function updateCartBar(){
   if(cartItems.size===0){ bar.classList.add('empty'); return; }
   bar.classList.remove('empty');
   cnt.textContent=cartItems.size+' 個腳本已選';
-  // Populate client dropdown
+  // Populate client dropdown (always refresh)
   const cc=$('cart-client');
-  if(cc.options.length<=1){
-    cc.innerHTML='<option value="">選擇客戶…</option>'+
-      DB.clients.filter(c=>c.status==='合作中').map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
-  }
+  const curCC=cc.value;
+  cc.innerHTML='<option value="">選擇客戶…</option>'+
+    DB.clients.filter(c=>c.status==='合作中').map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
+  if(curCC) cc.value=curCC;
 }
 
-function onCartClientChange(){
-  const code=$('cart-client').value;
+function onCartClientChange(code){
+  if(code===undefined) code=$('cart-client').value;
   const projSel=$('cart-proj');
   projSel.innerHTML='<option value="">選擇專案…</option>';
   if(!code) return;
@@ -2047,7 +2047,7 @@ function rS(){
       DB.clients.map(c=>`<option value="${c.code}">${c.name}</option>`).join('');
     if(fSClient) scrCF.value=fSClient;
   }
-  let ss=DB.scripts;
+  let ss=[...DB.scripts].sort((a,b)=>a.script_id.localeCompare(b.script_id));
   // Filter by client
   if(fSClient){
     const projIds=DB.projects.filter(p=>p.client_code===fSClient).map(p=>p.id);
@@ -2521,6 +2521,21 @@ function openAddProjForClient(clientCode){
     // Trigger change to update client name display if any
   }
   openModal('modal-proj');
+}
+
+
+// ── 新增腳本 — 自動帶入下一個編號 ─────────────────────────────
+function openAddScript(){
+  // 算出下一個腳本編號
+  const nums = DB.scripts.map(s=>{
+    const m = s.script_id.match(/A(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+  });
+  const nextNum = nums.length ? Math.max(...nums) + 1 : 1;
+  const nextId = 'A' + String(nextNum).padStart(4,'0');
+  const el = $('ns-id');
+  if(el) el.value = nextId;
+  openModal('modal-script');
 }
 
 // ── 新增客戶 — 自動帶入下一個代號 ─────────────────────────────
